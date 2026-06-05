@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ✈ SkyBooking – Hệ Thống Quản Lý Bán Vé Chuyến Bay
 
 Ứng dụng web quản lý bán vé máy bay theo mô hình **Client–Server**, xây dựng bằng:
@@ -280,3 +281,6 @@ curl -X POST http://localhost:3000/api/bookings \
 - JWT blacklist (Redis) nếu cần logout thực sự
 - Thêm **rate limiting** (`express-rate-limit`) để chống brute-force
 - Có thể nâng cấp DB lên **PostgreSQL** chỉ cần đổi driver
+=======
+# FlightBooking
+>>>>>>> 94e4fe429bec4354757f347c83c66fb2125d68e8
