@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin – FlightBooking</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+<div id="toast-container"></div>
+
+<div class="dashboard">
+  <aside class="sidebar">
+    <div class="sidebar-label">Admin</div>
+    <a class="sidebar-link active" onclick="switchTab('accounts',this)"><span class="icon"></span>Tài Khoản</a>
+    <a class="sidebar-link"        onclick="switchTab('airports',this)"><span class="icon"></span>Sân Bay</a>
+    <a class="sidebar-link"        onclick="switchTab('hangve',this)"><span class="icon"></span>Hạng Vé</a>
+    <a class="sidebar-link"        onclick="switchTab('thamso',this)"><span class="icon"></span>Tham Số</a>
+    <a class="sidebar-link"        onclick="switchTab('logs',this)"><span class="icon"></span>Lịch Sử Thay Đổi</a>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- ACCOUNTS -->
+    <div id="tab-accounts">
+      <div class="flex-between mb-3">
+        <h1 class="page-title">Quản Lý Tài Khoản</h1>
+        <button class="btn btn-primary" onclick="openStaffModal()">+ Tạo Staff</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã TK</th><th>Tên đăng nhập</th><th>Họ tên</th><th>CMND</th><th>Vai trò</th><th>Ngày tạo</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+            <tbody id="accountBody"><tr><td colspan="8" style="text-align:center"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIRPORTS -->
+    <div id="tab-airports" style="display:none">
+      <div class="flex-between mb-3">
+        <h1 class="page-title">Quản Lý Sân Bay</h1>
+        <button class="btn btn-primary" onclick="openAirportModal()">+ Thêm Sân Bay</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã</th><th>Tên sân bay</th><th>Thao tác</th></tr></thead>
+            <tbody id="airportBody"><tr><td colspan="3" style="text-align:center"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- HANG VE -->
+    <div id="tab-hangve" style="display:none">
+      <div class="flex-between mb-3">
+        <h1 class="page-title"> Quản Lý Hạng Vé</h1>
+        <button class="btn btn-primary" onclick="openHangVeModal()">+ Thêm Hạng Vé</button>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã HV</th><th>Tên hạng</th><th>Tỉ lệ giá (%)</th><th>Thao tác</th></tr></thead>
+            <tbody id="hangveBody"><tr><td colspan="4" style="text-align:center"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- THAM SO -->
+    <div id="tab-thamso" style="display:none">
+      <h1 class="page-title"> Tham Số Hệ Thống</h1>
+      <div class="card">
+        <p class="text-sm text-gray mb-3">Thay đổi tham số ảnh hưởng đến toàn bộ nghiệp vụ. Thao tác sẽ được ghi log.</p>
+        <div id="thamsoList"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div id="tab-logs" style="display:none">
+      <h1 class="page-title"> Lịch Sử Thay Đổi Quy Định</h1>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tham số</th><th>Giá trị cũ</th><th>Giá trị mới</th><th>Người sửa</th><th>Thời gian</th></tr></thead>
+            <tbody id="logBody"><tr><td colspan="5" style="text-align:center"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL: Tạo staff -->
+<div class="modal-overlay" id="staffModal">
+  <div class="modal">
+    <h2 class="modal-title">Tạo Tài Khoản Staff</h2>
+    <div class="form-group">
+      <label class="form-label">Tên đăng nhập *</label>
+      <input type="text" id="staffUser" class="form-control" placeholder="manager01">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Mật khẩu *</label>
+      <input type="password" id="staffPass" class="form-control" placeholder="≥ 6 ký tự">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Vai trò *</label>
+      <select id="staffRole" class="form-control">
+        <option value="manager">Manager</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div id="staffError" class="alert alert-error" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('staffModal')">Huỷ</button>
+      <button class="btn btn-primary" onclick="createStaff()">Tạo</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Sân bay -->
+<div class="modal-overlay" id="airportModal">
+  <div class="modal">
+    <h2 class="modal-title" id="airportModalTitle">Thêm Sân Bay</h2>
+    <input type="hidden" id="airportMode" value="add">
+    <div class="form-group">
+      <label class="form-label">Mã sân bay * (3 ký tự)</label>
+      <input type="text" id="airportCode" class="form-control" placeholder="SGN" maxlength="3">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tên sân bay *</label>
+      <input type="text" id="airportName" class="form-control" placeholder="Tân Sơn Nhất – TP.HCM">
+    </div>
+    <div id="airportError" class="alert alert-error" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('airportModal')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveAirport()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Hạng vé -->
+<div class="modal-overlay" id="hangveModal">
+  <div class="modal">
+    <h2 class="modal-title" id="hvModalTitle">Thêm Hạng Vé</h2>
+    <input type="hidden" id="hvMode" value="add">
+    <div class="form-group">
+      <label class="form-label">Mã hạng vé * (4 ký tự)</label>
+      <input type="text" id="hvMa" class="form-control" placeholder="HV04" maxlength="4">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tên hạng vé *</label>
+      <input type="text" id="hvTen" class="form-control" placeholder="Hạng VIP">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tỉ lệ giá (%) *</label>
+      <input type="number" id="hvTiLe" class="form-control" placeholder="120" min="1">
+    </div>
+    <div id="hvError" class="alert alert-error" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('hangveModal')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveHangVe()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth('admin')) return;
+    renderNavbar('admin');
+    await loadAccounts();
+});
+
+// ── Accounts ──────────────────────────────────────────────────
+async function loadAccounts() {
+    try {
+        const res = await api.getAllAccounts();
+        document.getElementById('accountBody').innerHTML = res.data.map(a => {
+            const ten  = (a.TenHanhKhach || '–').replace(/'/g, '&#39;');
+            const cmnd = (a.CMND || '–');
+            return `<tr>
+              <td class="text-gold">${a.MaTK}</td>
+              <td>${a.TenDangNhap}</td>
+              <td>${ten}</td>
+              <td>${cmnd}</td>
+              <td><span class="badge-role">${a.VaiTro}</span></td>
+              <td>${formatDate(a.NgayTao)}</td>
+              <td><span class="status-badge ${a.TrangThai ? 'status-confirmed' : 'status-cancelled'}">${a.TrangThai ? 'Hoạt động' : 'Khoá'}</span></td>
+              <td style="display:flex;gap:6px">
+                <select class="form-control" style="width:110px;padding:4px 8px" onchange="changeRole('${a.MaTK}',this)">
+                  ${['admin','manager','customer'].map(r => `<option value="${r}" ${r === a.VaiTro ? 'selected' : ''}>${r}</option>`).join('')}
+                </select>
+                ${a.TrangThai ? `<button class="btn btn-danger btn-sm" onclick="deactivate('${a.MaTK}')">Khóa</button>` : ''}
+              </td>
+            </tr>`;
+        }).join('');
+    } catch (err) { toast(err.message, 'error'); }
+}
+async function changeRole(maTK, sel) {
+    try {
+        await api.updateRole(maTK, { vaiTro: sel.value });
+        toast('Cập nhật vai trò thành công.','success');
+    } catch (err) { toast(err.message,'error'); await loadAccounts(); }
+}
+async function deactivate(maTK) {
+    if (!confirm('Khoá tài khoản này?')) return;
+    try { await api.deactivateAccount(maTK); toast('Đã khoá tài khoản.','success'); await loadAccounts(); }
+    catch (err) { toast(err.message,'error'); }
+}
+function openStaffModal() { document.getElementById('staffModal').classList.add('open'); }
+async function createStaff() {
+    const errEl = document.getElementById('staffError'); errEl.style.display='none';
+    try {
+        await api.createStaff({ tenDangNhap: document.getElementById('staffUser').value, matKhau: document.getElementById('staffPass').value, vaiTro: document.getElementById('staffRole').value });
+        toast('Tạo tài khoản thành công.','success');
+        closeModal('staffModal'); await loadAccounts();
+    } catch (err) { errEl.textContent=err.message; errEl.style.display='flex'; }
+}
+
+// ── Airports ──────────────────────────────────────────────────
+async function loadAirports() {
+    const res = await api.getAirports();
+    document.getElementById('airportBody').innerHTML = res.data.map(a=>`
+    <tr>
+      <td class="text-gold">${a.MaSanBay}</td>
+      <td>${a.TenSanBay}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="editAirport('${a.MaSanBay}', this)" data-name="${a.TenSanBay.replace(/"/g,'&quot;')}">Chỉnh sửa</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAirport('${a.MaSanBay}')">Xóa</button>
+      </td>
+    </tr>`).join('');
+}
+function openAirportModal() { document.getElementById('airportMode').value='add'; document.getElementById('airportModalTitle').textContent='Thêm Sân Bay'; document.getElementById('airportCode').disabled=false; document.getElementById('airportCode').value=''; document.getElementById('airportName').value=''; document.getElementById('airportModal').classList.add('open'); }
+function editAirport(code,name) { document.getElementById('airportMode').value='edit'; document.getElementById('airportModalTitle').textContent='Sửa Sân Bay'; document.getElementById('airportCode').value=code; document.getElementById('airportCode').disabled=true; document.getElementById('airportName').value=name; document.getElementById('airportModal').classList.add('open'); }
+async function saveAirport() {
+    const errEl=document.getElementById('airportError'); errEl.style.display='none';
+    const code=document.getElementById('airportCode').value; const name=document.getElementById('airportName').value;
+    if (!code||!name) { errEl.textContent='Vui lòng nhập đầy đủ.'; errEl.style.display='flex'; return; }
+    try {
+        if (document.getElementById('airportMode').value==='add') await api.addAirport({maSanBay:code,tenSanBay:name});
+        else await api.updateAirport(code,{tenSanBay:name});
+        toast('Lưu sân bay thành công.','success'); closeModal('airportModal'); await loadAirports();
+    } catch(err){errEl.textContent=err.message;errEl.style.display='flex';}
+}
+async function deleteAirport(ma) {
+    if (!confirm(`Xoá sân bay ${ma}?`)) return;
+    try { await api.deleteAirport(ma); toast('Đã xoá.','success'); await loadAirports(); }
+    catch(err){toast(err.message,'error');}
+}
+
+// ── HangVe ────────────────────────────────────────────────────
+async function loadHangVe() {
+    const res = await api.getHangVe();
+    document.getElementById('hangveBody').innerHTML = res.data.map(h=>`
+    <tr>
+      <td class="text-gold">${h.MaHangVe}</td>
+      <td>${h.TenHangVe}</td>
+      <td>${h.TiLe}%</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" onclick="editHangVe('${h.MaHangVe}','${h.TenHangVe}',${h.TiLe})">Chỉnh sửa</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteHangVe('${h.MaHangVe}')">Xóa</button>
+      </td>
+    </tr>`).join('');
+}
+function openHangVeModal(){document.getElementById('hvMode').value='add';document.getElementById('hvModalTitle').textContent='Thêm Hạng Vé';document.getElementById('hvMa').disabled=false;document.getElementById('hvMa').value='';document.getElementById('hvTen').value='';document.getElementById('hvTiLe').value='';document.getElementById('hangveModal').classList.add('open');}
+function editHangVe(ma,ten,tile){document.getElementById('hvMode').value='edit';document.getElementById('hvModalTitle').textContent='Sửa Hạng Vé';document.getElementById('hvMa').value=ma;document.getElementById('hvMa').disabled=true;document.getElementById('hvTen').value=ten;document.getElementById('hvTiLe').value=tile;document.getElementById('hangveModal').classList.add('open');}
+async function saveHangVe(){
+    const errEl=document.getElementById('hvError');errEl.style.display='none';
+    const ma=document.getElementById('hvMa').value,ten=document.getElementById('hvTen').value,tile=+document.getElementById('hvTiLe').value;
+    if(!ma||!ten||!tile){errEl.textContent='Vui lòng nhập đầy đủ.';errEl.style.display='flex';return;}
+    try{
+        if(document.getElementById('hvMode').value==='add') await api.addHangVe({maHangVe:ma,tenHangVe:ten,tiLe:tile});
+        else await api.updateHangVe(ma,{tenHangVe:ten,tiLe:tile});
+        toast('Lưu hạng vé thành công.','success');closeModal('hangveModal');await loadHangVe();
+    }catch(err){errEl.textContent=err.message;errEl.style.display='flex';}
+}
+async function deleteHangVe(ma){
+    if(!confirm(`Xoá hạng vé ${ma}?`))return;
+    try{await api.deleteHangVe(ma);toast('Đã xoá.','success');await loadHangVe();}
+    catch(err){toast(err.message,'error');}
+}
+
+// ── ThamSo ────────────────────────────────────────────────────
+const THAMSO_LABELS = {
+    TGBToiThieu:'Thời gian bay tối thiểu (phút)',
+    SoSanBayTGToiDa:'Số sân bay trung gian tối đa',
+    TGDToiThieu:'Thời gian dừng tối thiểu (phút)',
+    TGDToiDa:'Thời gian dừng tối đa (phút)',
+    TGDatVeChamNhat:'Đặt vé chậm nhất trước (giờ)'
+};
+async function loadThamSo() {
+    const res = await api.getThamSo();
+    document.getElementById('thamsoList').innerHTML = res.data.map(t=>`
+    <div class="flex-between mb-2 card" style="padding:1rem">
+      <div>
+        <div style="font-weight:600">${THAMSO_LABELS[t.TenThamSo]||t.TenThamSo}</div>
+        <div class="text-sm text-gray">Mã: ${t.MaThamSo}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="number" class="form-control" style="width:90px" id="ts_${t.MaThamSo}" value="${t.GiaTri}" min="0">
+        <button class="btn btn-primary btn-sm" onclick="saveThamSo('${t.MaThamSo}')">Lưu</button>
+      </div>
+    </div>`).join('');
+}
+async function saveThamSo(ma){
+    const val=+document.getElementById(`ts_${ma}`).value;
+    try{await api.updateThamSo(ma,{giaTri:val});toast('Cập nhật tham số thành công. Đã ghi log.','success');}
+    catch(err){toast(err.message,'error');}
+}
+
+// ── Logs ──────────────────────────────────────────────────────
+async function loadLogs(){
+    const res=await api.getThamSoLogs();
+    document.getElementById('logBody').innerHTML=res.data.length===0
+        ?`<tr><td colspan="5" style="text-align:center;color:var(--gray)">Chưa có lịch sử</td></tr>`
+        :res.data.map(l=>`
+    <tr>
+      <td>${THAMSO_LABELS[l.TenThamSo]||l.TenThamSo}</td>
+      <td>${l.GiaTriCu??'–'}</td>
+      <td class="text-gold">${l.GiaTriMoi}</td>
+      <td>${l.NguoiSua}</td>
+      <td>${formatDate(l.ThoiGian)}</td>
+    </tr>`).join('');
+}
+
+// ── Tab switching ─────────────────────────────────────────────
+const loaders = { airports:loadAirports, hangve:loadHangVe, thamso:loadThamSo, logs:loadLogs };
+function switchTab(tab,el){
+    ['accounts','airports','hangve','thamso','logs'].forEach(t=>document.getElementById(`tab-${t}`).style.display=t===tab?'block':'none');
+    document.querySelectorAll('.sidebar-link').forEach(a=>a.classList.remove('active'));
+    if(el)el.classList.add('active');
+    if(loaders[tab])loaders[tab]();
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{if(e.target===e.currentTarget)e.target.classList.remove('open');}));
+</script>
+</body>
+</html>

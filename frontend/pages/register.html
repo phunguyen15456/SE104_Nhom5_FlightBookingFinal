@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng Ký – FlightBooking</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.auth-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+.auth-card { background:var(--navy2); border:1px solid rgba(201,168,76,0.2); border-radius:20px; padding:2.5rem; width:100%; max-width:480px; box-shadow:0 24px 64px rgba(0,0,0,0.5); }
+.auth-logo { text-align:center; margin-bottom:2rem; }
+.auth-logo .icon { font-size:3rem; display:block; }
+.auth-logo h1 { font-family:var(--font-head); font-size:1.8rem; color:var(--gold); }
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="icon">✈️</span>
+      <h1>FlightBooking</h1>
+    </div>
+    <h2 style="color:var(--gold);margin-bottom:1.5rem;font-family:var(--font-head)">Tạo Tài Khoản</h2>
+
+    <form id="registerForm">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Họ và tên *</label>
+          <input type="text" id="regName" class="form-control" placeholder="Nguyễn Văn A" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CMND/CCCD *</label>
+          <input type="text" id="regCMND" class="form-control" placeholder="9 hoặc 12 số" required maxlength="12">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Số điện thoại</label>
+        <input type="tel" id="regPhone" class="form-control" placeholder="0901234567">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tên đăng nhập *</label>
+        <input type="text" id="regUser" class="form-control" placeholder="Tối thiểu 4 ký tự" required minlength="4">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Mật khẩu *</label>
+          <div style="position:relative">
+            <input type="password" id="regPass" class="form-control" placeholder="≥ 6 ký tự" required minlength="6" style="padding-right:44px">
+            <button type="button" onclick="togglePass('regPass',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray);font-size:1.1rem">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Xác nhận MK *</label>
+          <div style="position:relative">
+            <input type="password" id="regPass2" class="form-control" placeholder="Nhập lại" required style="padding-right:44px">
+            <button type="button" onclick="togglePass('regPass2',this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray);font-size:1.1rem">👁</button>
+          </div>
+        </div>
+      </div>
+      <div id="regError" class="alert alert-error" style="display:none"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem">
+        Tạo Tài Khoản
+      </button>
+    </form>
+
+    <div style="text-align:center;margin-top:1.5rem">
+      <span class="text-gray text-sm">Đã có tài khoản? </span>
+      <a href="/pages/login.html">Đăng nhập</a>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+if (Auth.isLoggedIn()) window.location.href = '/index.html';
+
+function togglePass(id, btn) {
+    const input = document.getElementById(id);
+    input.type = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁' : '🙈';
+}
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pass  = document.getElementById('regPass').value;
+    const pass2 = document.getElementById('regPass2').value;
+    const errEl = document.getElementById('regError');
+    errEl.style.display = 'none';
+
+    if (pass !== pass2) {
+        errEl.textContent = 'Mật khẩu xác nhận không khớp.';
+        errEl.style.display = 'flex'; return;
+    }
+
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = '⏳ Đang tạo...';
+
+    try {
+        await api.register({
+            tenDangNhap:  document.getElementById('regUser').value,
+            matKhau:      pass,
+            tenHanhKhach: document.getElementById('regName').value,
+            cmnd:         document.getElementById('regCMND').value,
+            soDT:         document.getElementById('regPhone').value
+        });
+        toast('Đăng ký thành công! Đang chuyển đến trang đăng nhập...', 'success');
+        setTimeout(() => window.location.href = '/pages/login.html', 1500);
+    } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'flex';
+        btn.disabled = false;
+        btn.textContent = 'Tạo Tài Khoản';
+    }
+});
+</script>
+</body>
+</html>

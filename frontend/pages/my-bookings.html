@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vé Của Tôi – FlightBooking</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+<div id="toast-container"></div>
+
+<div class="container section">
+  <div class="flex-between mb-3">
+    <h1 class="page-title">Vé Của Tôi</h1>
+    <a href="/index.html" class="btn btn-secondary"> Đặt Thêm</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid mb-3">
+    <div class="stat-card"><div class="stat-value" id="statTotal">–</div><div class="stat-label">Tổng đặt</div><div class="stat-icon"></div></div>
+    <div class="stat-card"><div class="stat-value" id="statConfirmed">–</div><div class="stat-label">Đã có vé</div><div class="stat-icon"></div></div>
+    <div class="stat-card"><div class="stat-value" id="statPending">–</div><div class="stat-label">Chờ xử lý</div><div class="stat-icon"></div></div>
+    <div class="stat-card"><div class="stat-value" id="statSpent">–</div><div class="stat-label">Tổng chi tiêu</div><div class="stat-icon"></div></div>
+  </div>
+
+  <!-- Filter -->
+  <div class="card mb-2">
+    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+      <select class="form-control" style="width:auto" id="filterStatus" onchange="filterBookings()">
+        <option value="">Tất cả trạng thái</option>
+        <option value="pending">Chờ xử lý</option>
+        <option value="confirmed">Đã xác nhận</option>
+        <option value="cancelled">Đã huỷ</option>
+      </select>
+      <input type="text" class="form-control" style="width:200px" placeholder="Tìm mã phiếu..." id="searchInput" oninput="filterBookings()">
+    </div>
+  </div>
+
+  <div id="bookingList"><div class="spinner"></div><p class="loading-text">Đang tải...</p></div>
+</div>
+
+<!-- Modal xác nhận huỷ -->
+<div class="modal-overlay" id="cancelModal">
+  <div class="modal">
+    <h2 class="modal-title"> Xác Nhận Huỷ</h2>
+    <p>Bạn có chắc muốn huỷ phiếu đặt chỗ <strong id="cancelCode"></strong>?</p>
+    <p class="text-sm text-gray" style="margin-top:8px">Ghế sẽ được hoàn lại. Thao tác này không thể khôi phục.</p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCancelModal()">Không</button>
+      <button class="btn btn-danger" id="btnConfirmCancel">Huỷ Đặt</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+let bookings = [], cancelTarget = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth('customer')) return;
+    renderNavbar('mybookings');
+    await loadBookings();
+});
+
+async function loadBookings() {
+    try {
+        const res = await api.myBookings();
+        bookings = res.data;
+        updateStats();
+        renderList(bookings);
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function updateStats() {
+    document.getElementById('statTotal').textContent     = bookings.length;
+    document.getElementById('statConfirmed').textContent = bookings.filter(b => b.TrangThai === 'confirmed').length;
+    document.getElementById('statPending').textContent   = bookings.filter(b => b.TrangThai === 'pending').length;
+    const total = bookings.filter(b => b.TrangThai !== 'cancelled').reduce((s,b) => s + Number(b.GiaTien), 0);
+    document.getElementById('statSpent').textContent = formatCurrency(total);
+}
+
+function filterBookings() {
+    const status = document.getElementById('filterStatus').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    let filtered = bookings;
+    if (status) filtered = filtered.filter(b => b.TrangThai === status);
+    if (search) filtered = filtered.filter(b => b.MaPhieuDat.toLowerCase().includes(search));
+    renderList(filtered);
+}
+
+function renderList(list) {
+    const el = document.getElementById('bookingList');
+    if (list.length === 0) {
+        el.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--gray)">
+            <div style="font-size:3rem;margin-bottom:1rem"></div>
+            <p>Chưa có phiếu đặt chỗ nào.</p>
+            <a href="/index.html" class="btn btn-primary" style="margin-top:1rem">Đặt Vé Ngay</a></div>`;
+        return;
+    }
+
+    el.innerHTML = list.map(b => `
+    <div class="card mb-2">
+      <div class="card-header">
+        <div>
+          <span class="text-gold" style="font-weight:700;font-family:var(--font-head)">${b.MaPhieuDat}</span>
+          <span class="status-badge status-${b.TrangThai}" style="margin-left:10px">${statusLabel(b.TrangThai)}</span>
+          ${b.MaVe ? `<span class="status-badge status-confirmed" style="margin-left:6px">Vé: ${b.MaVe}</span>` : ''}
+        </div>
+        <span class="text-sm text-gray"> ${formatDate(b.NgayDat)}</span>
+      </div>
+      <div class="flex-between" style="flex-wrap:wrap;gap:1rem">
+        <div class="flight-route" style="max-width:400px">
+          <div>
+            <div class="airport-code" style="font-size:3rem">${b.MaChuyenBay?.slice(0,3) || '–'}</div>
+            <div class="text-sm text-gray">${b.TenSanBayDi || ''}</div>
+          </div>
+          <div class="route-line" style="min-width:80px">
+            <div class="line"></div>
+          </div>
+          <div>
+            <div class="airport-code" style="font-size:3rem">${b.MaChuyenBay?.slice(0,3) || '–'}</div>
+            <div class="text-sm text-gray">${b.TenSanBayDen || ''}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div class="text-sm text-gray">Chuyến: <strong>${b.MaChuyenBay}</strong> | Hạng: <strong>${b.TenHangVe}</strong></div>
+          <div class="text-sm text-gray"> ${formatDate(b.NgayGio)}</div>
+          <div class="price-amount" style="font-size:1.2rem">${formatCurrency(b.GiaTien)}</div>
+        </div>
+      </div>
+  <div class="divider"></div>
+    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+  ${b.TrangThai === 'pending' ? `
+    <button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.MaPhieuDat}')"> Huỷ Đặt</button>
+  ` : ''}
+  <button class="btn btn-secondary btn-sm" onclick="openDeleteModal('${b.MaPhieuDat}')">Xoá</button>
+  </div>
+    </div>`).join('');
+}
+
+function statusLabel(s) {
+    return { pending: 'Chờ xử lý', confirmed: 'Đã có vé', cancelled: 'Đã huỷ' }[s] || s;
+}
+
+function openCancelModal(maPhieuDat) {
+    cancelTarget = maPhieuDat;
+    document.getElementById('cancelCode').textContent = maPhieuDat;
+    document.getElementById('cancelModal').classList.add('open');
+    document.getElementById('btnConfirmCancel').onclick = async () => {
+        try {
+            await api.huyDat(cancelTarget);
+            closeCancelModal();
+            toast('Huỷ đặt chỗ thành công.', 'success');
+            await loadBookings();
+        } catch (err) { toast(err.message, 'error'); }
+    };
+}
+function closeCancelModal() { document.getElementById('cancelModal').classList.remove('open'); }
+document.getElementById('cancelModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeCancelModal(); });
+
+let deleteTarget = null;
+
+function openDeleteModal(maPhieuDat) {
+    deleteTarget = maPhieuDat;
+    document.getElementById('deleteCode').textContent = maPhieuDat;
+    document.getElementById('deleteModal').classList.add('open');
+    document.getElementById('btnConfirmDelete').onclick = async () => {
+        try {
+            await deleteBooking(deleteTarget);
+        } catch (err) {
+            toast(err.message, 'error');
+        }
+    };
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('open');
+}
+
+async function deleteBooking(maPhieuDat) {
+    try {
+        await api.xoaPhieu(maPhieuDat);
+        bookings = bookings.filter(b => b.MaPhieuDat !== maPhieuDat);
+        closeDeleteModal();
+        updateStats();
+        filterBookings();
+        toast('Đã xoá phiếu thành công.', 'success');
+    } catch (err) {
+        closeDeleteModal();
+        toast(err.message, 'error');
+    }
+}
+
+</script>
+
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal">
+    <h2 class="modal-title">🗑 Xác Nhận Xoá</h2>
+    <p>Bạn có chắc muốn xoá phiếu <strong id="deleteCode"></strong> khỏi danh sách?</p>
+    <p class="text-sm text-gray" style="margin-top:8px">Thao tác này không thể khôi phục.</p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeDeleteModal()">Không</button>
+      <button class="btn btn-danger" id="btnConfirmDelete">Xoá</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

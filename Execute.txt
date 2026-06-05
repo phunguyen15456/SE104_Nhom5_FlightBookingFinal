@@ -1,0 +1,2 @@
+cd C:\Projects\flight-booking\backend
+npm run dev

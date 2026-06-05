@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manager – FlightBooking</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+<div id="toast-container"></div>
+
+<div class="dashboard">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-label">Quản lý</div>
+    <a href="#flights"  class="sidebar-link active" onclick="switchTab('flights',this)"><span class="icon"></span>Chuyến Bay</a>
+    <a href="#bookings" class="sidebar-link"         onclick="switchTab('bookings',this)"><span class="icon"></span>Đặt Vé</a>
+    <div class="sidebar-label" style="margin-top:1rem">Báo cáo</div>
+    <a href="#report"   class="sidebar-link"         onclick="switchTab('report',this)"><span class="icon"></span>Doanh Thu</a>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- TAB: FLIGHTS -->
+    <div id="tab-flights">
+      <div class="flex-between mb-3">
+        <h1 class="page-title"> Quản Lý Chuyến Bay</h1>
+        <button class="btn btn-primary" onclick="openFlightModal()">+ Thêm Chuyến Bay</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid mb-3">
+        <div class="stat-card"><div class="stat-value" id="totalFlights">–</div><div class="stat-label">Tổng chuyến</div><div class="stat-icon"></div></div>
+        <div class="stat-card"><div class="stat-value" id="flightsToday">–</div><div class="stat-label">Bay hôm nay</div><div class="stat-icon"></div></div>
+        <div class="stat-card"><div class="stat-value" id="totalSeats">–</div><div class="stat-label">Ghế trống</div><div class="stat-icon"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Danh sách chuyến bay</span>
+          <input type="text" class="form-control" style="width:220px" placeholder=" Tìm..." id="flightSearch" oninput="filterFlights()">
+        </div>
+        <div class="table-wrap">
+          <table id="flightTable">
+            <thead><tr><th>Mã CB</th><th>Từ</th><th>Đến</th><th>Khởi hành</th><th>T.Gian</th><th>Giá vé</th><th>Ghế trống</th><th>Thao tác</th></tr></thead>
+            <tbody id="flightBody"><tr><td colspan="8" style="text-align:center"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: BOOKINGS -->
+    <div id="tab-bookings" style="display:none">
+      <div class="flex-between mb-3">
+        <h1 class="page-title">Quản Lý Đặt Vé</h1>
+        <select class="form-control" style="width:auto" id="bookingFilter" onchange="filterAllBookings()">
+          <option value="">Tất cả trạng thái</option>
+          <option value="pending">Chờ xử lý</option>
+          <option value="confirmed">Đã xác nhận</option>
+          <option value="cancelled">Đã huỷ</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã Phiếu</th><th>Hành khách</th><th>Chuyến bay</th><th>Hạng vé</th><th>Giá tiền</th><th>Ngày đặt</th><th>Trạng thái</th><th>Mã Vé</th><th>Thao tác</th></tr></thead>
+            <tbody id="bookingBody"><tr><td colspan="9" style="text-align:center"><div class="spinner"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: REPORT -->
+    <div id="tab-report" style="display:none">
+      <h1 class="page-title">Báo Cáo Doanh Thu</h1>
+
+      <div class="card mb-3">
+        <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Năm</label>
+            <input type="number" id="reportYear" class="form-control" value="2025" style="width:100px">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Tháng (chi tiết)</label>
+            <select id="reportMonth" class="form-control" style="width:140px">
+              <option value="">-- Chọn tháng --</option>
+              ${Array.from({length:12},(_,i)=>`<option value="1">Tháng 1</option>
+<option value="2">Tháng 2</option>
+<option value="3">Tháng 3</option>
+<option value="4">Tháng 4</option>
+<option value="5">Tháng 5</option>
+<option value="6">Tháng 6</option>
+<option value="7">Tháng 7</option>
+<option value="8">Tháng 8</option>
+<option value="9">Tháng 9</option>
+<option value="10">Tháng 10</option>
+<option value="11">Tháng 11</option>
+<option value="12">Tháng 12</option>`).join('')}
+            </select>
+          </div>
+          <div style="align-self:flex-end">
+            <button class="btn btn-primary" onclick="loadReport()">Xem Báo Cáo</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly chart -->
+      <div class="card mb-3">
+        <div class="card-header"><span class="card-title">Doanh thu theo tháng</span><span id="reportTotal" class="text-gold"></span></div>
+        <div id="monthChart" style="display:flex;gap:6px;align-items:flex-end;height:180px;padding:1rem 0"></div>
+      </div>
+
+      <!-- Flight detail table -->
+      <div class="card" id="flightReportCard" style="display:none">
+        <div class="card-header"><span class="card-title" id="flightReportTitle">Chi tiết theo chuyến bay</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Mã CB</th><th>Tuyến bay</th><th>Khởi hành</th><th>Số vé</th><th>Doanh thu</th></tr></thead>
+            <tbody id="flightReportBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+
+
+            <!-- Báo cáo theo năm -->
+<div class="card mb-3">
+    <div class="card-header">
+        <span class="card-title">Doanh Thu Theo Năm</span>
+        <button class="btn btn-secondary btn-sm" onclick="loadYearlyReport()">Tải lại</button>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Năm</th>
+                    <th>Số Vé</th>
+                    <th>Doanh Thu</th>
+                    <th>Xem Chi Tiết</th>
+                </tr>
+            </thead>
+            <tbody id="yearlyBody">
+                <tr><td colspan="4" style="text-align:center"><div class="spinner"></div></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+    </div>
+
+
+
+    
+
+  </main>
+</div>
+
+<!-- MODAL: Thêm/Sửa chuyến bay -->
+<div class="modal-overlay" id="flightModal">
+  <div class="modal" style="max-width:620px">
+    <h2 class="modal-title" id="fmTitle">Thêm Chuyến Bay</h2>
+    <form id="flightForm">
+      <input type="hidden" id="fmMode" value="add">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Mã chuyến bay *</label>
+          <input type="text" id="fmMa" class="form-control" placeholder="CB001" maxlength="5" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Giá vé cơ bản *</label>
+          <input type="number" id="fmGia" class="form-control" placeholder="1000000" min="1" required>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Sân bay đi *</label>
+          <select id="fmSBDi" class="form-control" required><option value="">Chọn...</option></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sân bay đến *</label>
+          <select id="fmSBDen" class="form-control" required><option value="">Chọn...</option></select>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Ngày giờ bay *</label>
+          <input type="datetime-local" id="fmNgayGio" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Thời gian bay (phút) *</label>
+          <input type="number" id="fmTGB" class="form-control" placeholder="90" min="1" required>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <p class="text-sm text-gray mb-2">Số ghế theo hạng vé:</p>
+      <div id="hangVeInputs"></div>
+      <div class="divider"></div>
+<div class="flex-between mb-2">
+  <p class="text-sm text-gray">Sân bay trung gian (tối đa 2):</p>
+  <button type="button" class="btn btn-secondary btn-sm" onclick="addTrungGian()">+ Thêm</button>
+</div>
+<div id="trungGianInputs"></div>
+      
+      <div id="fmError" class="alert alert-error" style="display:none"></div>
+    </form>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeFlightModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="submitFlightForm()"> Lưu</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+let allFlights = [], allBookings = [], hangVeList = [], airportList = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!requireAuth('manager','admin')) return;
+    renderNavbar('manager');
+    await Promise.all([loadFlights(), loadBookings(), loadMeta()]);
+});
+
+async function loadMeta() {
+    const [airports, hangVes] = await Promise.all([api.getAirports(), api.getHangVe()]);
+    airportList = airports.data; hangVeList = hangVes.data;
+    const opts = airportList.map(a => `<option value="${a.MaSanBay}">${a.MaSanBay} – ${a.TenSanBay}</option>`).join('');
+    document.getElementById('fmSBDi').innerHTML += opts;
+    document.getElementById('fmSBDen').innerHTML += opts;
+    document.getElementById('hangVeInputs').innerHTML = hangVeList.map(h => `
+        <div class="grid-2 mb-1">
+          <label class="form-label" style="margin:0;align-self:center">${h.TenHangVe} (${h.TiLe}%)</label>
+          <input type="number" class="form-control" id="seats_${h.MaHangVe}" placeholder="Số ghế" min="0" value="0">
+        </div>`).join('');
+}
+
+async function loadFlights() {
+    try {
+        const res = await api.searchFlights({});
+        allFlights = res.data.data || [];
+        const today = new Date().toDateString();
+        document.getElementById('totalFlights').textContent = allFlights.length;
+        document.getElementById('flightsToday').textContent = allFlights.filter(f => new Date(f.NgayGio).toDateString() === today).length;
+        document.getElementById('totalSeats').textContent = allFlights.reduce((s,f) => s + (f.TongGheConLai||0), 0);
+        renderFlightTable(allFlights);
+    } catch (err) { toast(err.message,'error'); }
+}
+
+function filterFlights() {
+    const q = document.getElementById('flightSearch').value.toLowerCase();
+    const filtered = q ? allFlights.filter(f =>
+        f.MaChuyenBay.toLowerCase().includes(q) ||
+        f.MaSanBayDi.toLowerCase().includes(q)  ||
+        f.MaSanBayDen.toLowerCase().includes(q)
+    ) : allFlights;
+    renderFlightTable(filtered);
+}
+
+function renderFlightTable(list) {
+    document.getElementById('flightBody').innerHTML = list.length === 0
+        ? `<tr><td colspan="8" style="text-align:center;color:var(--gray)">Không có dữ liệu</td></tr>`
+        : list.map(f => `
+        <tr>
+          <td class="text-gold">${f.MaChuyenBay}</td>
+          <td>${f.MaSanBayDi}</td>
+          <td>${f.MaSanBayDen}</td>
+          <td>${formatDate(f.NgayGio)}</td>
+          <td>${formatMinutes(f.ThoiGianBay)}</td>
+          <td>${formatCurrency(f.GiaVe)}</td>
+          <td><span style="color:${f.TongGheConLai>10?'var(--success)':f.TongGheConLai>0?'var(--gold)':'var(--danger)'}">${f.TongGheConLai||0}</span></td>
+          <td style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm" onclick="editFlight('${f.MaChuyenBay}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteFlight('${f.MaChuyenBay}')">🗑</button>
+          </td>
+        </tr>`).join('');
+}
+
+async function loadBookings() {
+    try {
+        const res = await api.allBookings();
+        allBookings = res.data;
+        renderBookingTable(allBookings);
+    } catch {}
+}
+
+function filterAllBookings() {
+    const status = document.getElementById('bookingFilter').value;
+    renderBookingTable(status ? allBookings.filter(b=>b.TrangThai===status) : allBookings);
+}
+
+function renderBookingTable(list) {
+    document.getElementById('bookingBody').innerHTML = list.length === 0
+        ? `<tr><td colspan="9" style="text-align:center;color:var(--gray)">Không có dữ liệu</td></tr>`
+        : list.map(b => `
+        <tr>
+          <td class="text-gold">${b.MaPhieuDat}</td>
+          <td>${b.TenHanhKhach}</td>
+          <td>${b.MaChuyenBay}</td>
+          <td>${b.TenHangVe}</td>
+          <td>${formatCurrency(b.GiaTien)}</td>
+          <td>${formatDate(b.NgayDat)}</td>
+          <td><span class="status-badge status-${b.TrangThai}">${{pending:' Chờ',confirmed:' Xác nhận',cancelled:' Huỷ'}[b.TrangThai]||b.TrangThai}</span></td>
+          <td>${b.MaVe ? `<span class="text-gold">${b.MaVe}</span>` : '–'}</td>
+          <td>${b.TrangThai==='pending'
+              ? `<button class="btn btn-success btn-sm" onclick="xuatVe('${b.MaPhieuDat}')">Xuất vé</button>`
+              : ''}</td>
+        </tr>`).join('');
+}
+
+async function xuatVe(maPhieuDat) {
+    try {
+        await api.xuatVe(maPhieuDat);
+        toast('Xuất vé thành công!', 'success');
+        await loadBookings();
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+async function deleteFlight(ma) {
+    if (!confirm(`Xoá chuyến bay ${ma}?`)) return;
+    try {
+        await api.deleteFlight(ma);
+        toast('Xoá thành công.','success');
+        await loadFlights();
+    } catch (err) { toast(err.message,'error'); }
+}
+
+async function editFlight(ma) {
+    try {
+        const res = await api.getFlightDetail(ma);
+        const f = res.data;
+        document.getElementById('fmMode').value = 'edit';
+        document.getElementById('fmTitle').textContent = `Sửa Chuyến Bay ${ma}`;
+        document.getElementById('fmMa').value = f.MaChuyenBay;
+        document.getElementById('fmMa').disabled = true;
+        document.getElementById('fmGia').value = f.GiaVe;
+        document.getElementById('fmSBDi').value = f.MaSanBayDi;
+        document.getElementById('fmSBDen').value = f.MaSanBayDen;
+        document.getElementById('fmNgayGio').value = new Date(f.NgayGio).toISOString().slice(0,16);
+        document.getElementById('fmTGB').value = f.ThoiGianBay;
+
+        // Điền số ghế hiện tại vào form
+        f.hangVe.forEach(hv => {
+            const input = document.getElementById(`seats_${hv.MaHangVe}`);
+            if (input) input.value = hv.SLGhe;
+        });
+
+        document.getElementById('flightModal').classList.add('open');
+    } catch (err) { toast(err.message,'error'); }
+}
+function openFlightModal() {
+    document.getElementById('fmMode').value = 'add';
+    document.getElementById('fmTitle').textContent = 'Thêm Chuyến Bay';
+    document.getElementById('flightForm').reset();
+    document.getElementById('fmMa').disabled = false;
+    document.getElementById('flightModal').classList.add('open');
+}
+function closeFlightModal() { document.getElementById('flightModal').classList.remove('open'); }
+
+async function submitFlightForm() {
+    const mode = document.getElementById('fmMode').value;
+    const errEl = document.getElementById('fmError');
+    errEl.style.display = 'none';
+    const body = {
+        maChuyenBay: document.getElementById('fmMa').value,
+        giaVe: +document.getElementById('fmGia').value,
+        maSanBayDi: document.getElementById('fmSBDi').value,
+        maSanBayDen: document.getElementById('fmSBDen').value,
+        ngayGio: document.getElementById('fmNgayGio').value,
+        thoiGianBay: +document.getElementById('fmTGB').value,
+    };
+// Luôn gửi số ghế dù là thêm hay sửa
+      body.hangVe = hangVeList.map(h => ({
+          maHangVe: h.MaHangVe,
+          slGhe: +(document.getElementById(`seats_${h.MaHangVe}`)?.value || 0)
+      }));
+
+      if (mode === 'add') {
+          body.sanBayTrungGian = getTrungGianData();
+      }
+    try {
+        if (mode === 'add') await api.createFlight(body);
+        else await api.updateFlight(body.maChuyenBay, body);
+        toast(mode==='add'?'Thêm chuyến bay thành công!':'Cập nhật thành công!','success');
+        closeFlightModal();
+        await loadFlights();
+    } catch (err) {
+        errEl.textContent = err.message; errEl.style.display = 'flex';
+    }
+}
+
+async function loadReport() {
+  await loadYearlyReport();
+    const nam = +document.getElementById('reportYear').value;
+    const thang = document.getElementById('reportMonth').value;
+    try {
+        const res = await api.revenueMonthly(nam);
+        const months = res.data;
+        const total = months.reduce((s,m)=>s+Number(m.DoanhThu),0);
+        document.getElementById('reportTotal').textContent = `Tổng: ${formatCurrency(total)}`;
+
+        const maxVal = Math.max(...months.map(m=>Number(m.DoanhThu)), 1);
+        document.getElementById('monthChart').innerHTML = Array.from({length:12},(_,i)=>{
+            const m = months.find(x=>x.Thang===i+1);
+            const h = m ? Math.round((Number(m.DoanhThu)/maxVal)*140)+10 : 8;
+            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                <div class="text-sm text-gold" style="font-size:.7rem">${m?formatCurrency(Number(m.DoanhThu)).replace('₫','').replace(/\./g,'').replace(',','k'):''}</div>
+                <div style="width:100%;background:${m?'linear-gradient(to top,var(--gold),var(--sky))':'rgba(255,255,255,0.05)'};height:${h}px;border-radius:4px 4px 0 0;cursor:pointer" 
+                     title="T${i+1}: ${m?formatCurrency(m.DoanhThu):'0'}" 
+                     onclick="loadFlightReport(${nam},${i+1})"></div>
+                <div class="text-sm" style="font-size:.7rem;color:var(--gray)">T${i+1}</div>
+            </div>`;
+        }).join('');
+
+        if (thang) await loadFlightReport(nam, thang);
+    } catch (err) { toast(err.message,'error'); }
+}
+
+async function loadFlightReport(nam, thang) {
+    try {
+        const res = await api.revenueFlights(nam, thang);
+        const card = document.getElementById('flightReportCard');
+        card.style.display = 'block';
+        document.getElementById('flightReportTitle').textContent = `Chi tiết Tháng ${thang}/${nam}`;
+        document.getElementById('flightReportBody').innerHTML = res.data.length === 0
+            ? `<tr><td colspan="5" style="text-align:center;color:var(--gray)">Không có dữ liệu</td></tr>`
+            : res.data.map(r=>`
+            <tr>
+              <td class="text-gold">${r.MaChuyenBay}</td>
+              <td>${r.TenSanBayDi} → ${r.TenSanBayDen}</td>
+              <td>${formatDate(r.NgayGio)}</td>
+              <td>${r.SoVe}</td>
+              <td class="text-gold">${formatCurrency(r.DoanhThu)}</td>
+            </tr>`).join('');
+    } catch {}
+}
+
+function switchTab(tab, el) {
+    ['flights','bookings','report'].forEach(t => {
+        document.getElementById(`tab-${t}`).style.display = t===tab?'block':'none';
+    });
+    document.querySelectorAll('.sidebar-link').forEach(a => a.classList.remove('active'));
+    if (el) el.classList.add('active');
+    if (tab === 'report') loadReport();
+}
+
+function addTrungGian() {
+    const container = document.getElementById('trungGianInputs');
+    const count = container.children.length;
+    if (count >= 2) { toast('Tối đa 2 sân bay trung gian.', 'error'); return; }
+
+    const idx = Date.now();
+    const sbOpts = airportList.map(a =>
+        `<option value="${a.MaSanBay}">${a.MaSanBay} – ${a.TenSanBay}</option>`
+    ).join('');
+
+    const div = document.createElement('div');
+    div.className = 'grid-2 mb-1';
+    div.id = `tg_${idx}`;
+    div.innerHTML = `
+        <div class="form-group" style="margin:0">
+            <label class="form-label">Sân bay</label>
+            <select class="form-control tg-sanbay"><option value="">Chọn...</option>${sbOpts}</select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+            <div class="form-group" style="margin:0;flex:1">
+                <label class="form-label">Thời gian dừng (phút)</label>
+                <input type="number" class="form-control tg-tgd" placeholder="10-20" min="10" max="20">
+            </div>
+            <button type="button" class="btn btn-danger btn-sm"
+                    onclick="document.getElementById('tg_${idx}').remove()">🗑</button>
+        </div>`;
+    container.appendChild(div);
+}
+
+function getTrungGianData() {
+    const result = [];
+    document.querySelectorAll('#trungGianInputs > div').forEach(div => {
+        const maSanBay     = div.querySelector('.tg-sanbay').value;
+        const thoiGianDung = parseInt(div.querySelector('.tg-tgd').value);
+        if (maSanBay && thoiGianDung) {
+            result.push({ maSanBay, thoiGianDung });
+        }
+    });
+    return result;
+}
+
+
+async function loadYearlyReport() {
+    try {
+        const res = await api.revenueYearly();
+        const tbody = document.getElementById('yearlyBody');
+
+        if (res.data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--gray)">Chưa có dữ liệu</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = res.data.map(r => `
+        <tr>
+            <td class="text-gold" style="font-weight:700">${r.Nam}</td>
+            <td>${r.SoVe}</td>
+            <td class="text-gold">${formatCurrency(r.DoanhThu)}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="
+                    document.getElementById('reportYear').value=${r.Nam};
+                    loadReport();
+                ">Xem tháng</button>
+            </td>
+        </tr>`).join('');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+</script>
+</body>
+</html>

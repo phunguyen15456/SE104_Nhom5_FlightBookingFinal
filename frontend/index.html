@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlightBooking – Đặt Vé Bay</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<nav class="navbar" id="navbar"></nav>
+<div id="toast-container"></div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <h1 class="hero-title">Bay Đi Khắp Nơi<br><span>Chỉ Với Vài Cú Click</span></h1>
+    <p class="hero-sub">Tìm kiếm và đặt vé máy bay nhanh chóng, an toàn, tiện lợi.</p>
+
+    <!-- SEARCH BOX -->
+    <div class="search-box">
+      <div class="search-grid">
+        <div class="form-group" style="margin:0">
+          <label class="form-label"> Từ</label>
+          <select id="sbDi" class="form-control">
+            <option value="">Chọn sân bay...</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label"> Đến</label>
+          <select id="sbDen" class="form-control">
+            <option value="">Chọn sân bay...</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Ngày Bay</label>
+          <input type="date" id="ngayBay" class="form-control">
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label">Hạng Vé</label>
+          <select id="hangVeFilter" class="form-control">
+            <option value="">Tất cả hạng</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-lg" onclick="searchFlights()">Tìm</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section class="section">
+  <div class="container">
+    <div id="resultsHeader" style="display:none" class="flex-between mb-2">
+      <span id="resultCount" class="text-gray text-sm"></span>
+      <select class="form-control" style="width:auto" onchange="sortFlights(this.value)">
+        <option value="time">Sắp xếp: Giờ bay</option>
+        <option value="price_asc">Giá tăng dần</option>
+        <option value="price_desc">Giá giảm dần</option>
+      </select>
+    </div>
+    <div id="flightList">
+      <div style="text-align:center;padding:3rem;color:var(--gray)">
+        <div style="font-size:3rem;margin-bottom:1rem">✈️</div>
+        <p>Nhập điều kiện tìm kiếm và nhấn <strong>Tìm</strong> để xem chuyến bay</p>
+      </div>
+    </div>
+    <div id="pagination" class="pagination"></div>
+  </div>
+</section>
+
+<!-- MODAL: Chi tiết / Đặt vé -->
+<div class="modal-overlay" id="flightModal">
+  <div class="modal">
+    <h2 class="modal-title" id="modalTitle">Chi Tiết Chuyến Bay</h2>
+    <div id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Đóng</button>
+      <button class="btn btn-primary" id="btnBook" onclick="proceedBooking()" style="display:none">Đặt Vé Ngay</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+let allFlights = [], currentFlight = null, selectedHangVe = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    renderNavbar('home');
+    await loadFilters();
+    // Mặc định tải danh sách
+    await searchFlights(true);
+});
+
+async function loadFilters() {
+    try {
+        const [airports, hangVes] = await Promise.all([api.getAirports(), api.getHangVe()]);
+        const sbOpts = airports.data.map(a => `<option value="${a.MaSanBay}">${a.MaSanBay} – ${a.TenSanBay}</option>`).join('');
+        document.getElementById('sbDi').innerHTML  += sbOpts;
+        document.getElementById('sbDen').innerHTML += sbOpts;
+        document.getElementById('hangVeFilter').innerHTML += hangVes.data.map(h =>
+            `<option value="${h.MaHangVe}">${h.TenHangVe}</option>`).join('');
+    } catch {}
+}
+
+async function searchFlights(silent = false) {
+    const params = {};
+    const sbDi  = document.getElementById('sbDi').value;
+    const sbDen = document.getElementById('sbDen').value;
+    const ngay  = document.getElementById('ngayBay').value;
+    if (sbDi)  params.maSBDi  = sbDi;
+    if (sbDen) params.maSBDen = sbDen;
+    if (ngay)  params.ngayBay = ngay;
+
+    document.getElementById('flightList').innerHTML = '<div class="spinner"></div><p class="loading-text">Đang tìm kiếm...</p>';
+    try {
+        const res = await api.searchFlights(params);
+        allFlights = res.data.data || [];
+        renderFlights(allFlights);
+        if (!silent) toast(`Tìm thấy ${allFlights.length} chuyến bay`, 'success');
+    } catch (err) {
+        document.getElementById('flightList').innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+    }
+}
+
+function sortFlights(mode) {
+    let sorted = [...allFlights];
+    if (mode === 'price_asc')  sorted.sort((a,b) => a.GiaVe - b.GiaVe);
+    if (mode === 'price_desc') sorted.sort((a,b) => b.GiaVe - a.GiaVe);
+    if (mode === 'time')       sorted.sort((a,b) => new Date(a.NgayGio) - new Date(b.NgayGio));
+    renderFlights(sorted);
+}
+
+function renderFlights(flights) {
+    const header = document.getElementById('resultsHeader');
+    const list   = document.getElementById('flightList');
+    header.style.display = 'flex';
+    document.getElementById('resultCount').textContent = `${flights.length} chuyến bay`;
+
+    if (flights.length === 0) {
+        list.innerHTML = `<div style="text-align:center;padding:3rem;color:var(--gray)">
+            <div style="font-size:3rem;margin-bottom:1rem"></div>
+            <p>Không tìm thấy chuyến bay phù hợp.</p></div>`;
+        return;
+    }
+
+    list.innerHTML = flights.map(f => `
+    <div class="flight-card mb-2" onclick="showDetail('${f.MaChuyenBay}')">
+      <div class="flight-route">
+        <div>
+          <div class="airport-code">${f.MaSanBayDi}</div>
+          <div class="airport-name">${f.TenSanBayDi || ''}</div>
+          <div class="text-sm text-gold">${formatDate(f.NgayGio).split(',')[1]?.trim() || ''}</div>
+        </div>
+        <div class="route-line">
+          <div class="line"></div>
+          <div class="duration">${formatMinutes(f.ThoiGianBay)}</div>
+        </div>
+        <div>
+          <div class="airport-code">${f.MaSanBayDen}</div>
+          <div class="airport-name">${f.TenSanBayDen || ''}</div>
+        </div>
+      </div>
+      <div style="text-align:center;padding:0 1rem;color:var(--gray);font-size:0.82rem">
+        ${formatDate(f.NgayGio).split(',')[0]}<br>
+        <span style="color:${f.TongGheConLai > 10 ? 'var(--success)' : f.TongGheConLai > 0 ? 'var(--gold)' : 'var(--danger)'}">
+          ${f.TongGheConLai > 0 ? f.TongGheConLai + ' ghế' : 'Hết chỗ'}
+        </span>
+      </div>
+      <div class="flight-price">
+        <div class="price-amount">${formatCurrency(f.GiaVe)}</div>
+        <div class="price-label">từ / ghế</div>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="event.stopPropagation();showDetail('${f.MaChuyenBay}')">Chọn</button>
+      </div>
+    </div>`).join('');
+}
+
+async function showDetail(maChuyenBay) {
+    try {
+        const res = await api.getFlightDetail(maChuyenBay);
+        currentFlight = res.data;
+        const f = currentFlight;
+        selectedHangVe = null;
+
+        document.getElementById('modalTitle').textContent = `Chuyến bay ${f.MaChuyenBay}`;
+        const user = Auth.getUser();
+
+        document.getElementById('modalBody').innerHTML = `
+        <div class="card mb-2">
+          <div class="flex-between">
+            <div><div class="airport-code">${f.MaSanBayDi}</div><div class="text-sm text-gray">${f.TenSanBayDi}</div></div>
+            <div style="text-align:center"><div style="font-size:1.5rem">✈️</div><div class="text-sm text-gray">${formatMinutes(f.ThoiGianBay)}</div></div>
+            <div style="text-align:right"><div class="airport-code">${f.MaSanBayDen}</div><div class="text-sm text-gray">${f.TenSanBayDen}</div></div>
+          </div>
+          <div class="divider"></div>
+          <div class="text-sm text-gray"> Khởi hành: <strong class="text-gold">${formatDate(f.NgayGio)}</strong></div>
+          ${f.sanBayTrungGian?.length ? `<div class="text-sm text-gray mt-1">Trung gian: ${f.sanBayTrungGian.map(t => t.TenSanBay).join(' → ')}</div>` : ''}
+        </div>
+        <p class="text-sm text-gray mb-2">Chọn hạng vé:</p>
+        <div id="hangVeList" style="display:flex;flex-direction:column;gap:8px">
+          ${f.hangVe.map(hv => `
+          <label style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.08);transition:border-color .15s" 
+                 class="hv-option" data-ma="${hv.MaHangVe}" data-gia="${hv.GiaHangVe}">
+            <input type="radio" name="hangve" value="${hv.MaHangVe}" style="accent-color:var(--gold)">
+            <div style="flex:1">
+              <span style="font-weight:600">${hv.TenHangVe}</span>
+              <span class="status-badge ${hv.SLGheConLai > 0 ? 'status-confirmed' : 'status-cancelled'}" style="margin-left:8px">
+                ${hv.SLGheConLai} ghế trống
+              </span>
+            </div>
+            <span class="text-gold" style="font-weight:700">${formatCurrency(hv.GiaHangVe)}</span>
+          </label>`).join('')}
+        </div>`;
+
+        // Radio change
+        document.querySelectorAll('input[name="hangve"]').forEach(r => {
+            r.addEventListener('change', (e) => {
+                document.querySelectorAll('.hv-option').forEach(el => el.style.borderColor = 'rgba(255,255,255,0.08)');
+                e.target.closest('.hv-option').style.borderColor = 'var(--gold)';
+                selectedHangVe = e.target.value;
+                document.getElementById('btnBook').style.display = user ? 'flex' : 'none';
+            });
+        });
+
+        document.getElementById('btnBook').style.display = 'none';
+        if (!user) {
+            document.getElementById('modalBody').innerHTML += `<div class="alert alert-info mt-2">ℹ️ <a href="/pages/login.html">Đăng nhập</a> để đặt vé.</div>`;
+        }
+
+        document.getElementById('flightModal').classList.add('open');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+async function proceedBooking() {
+    if (!selectedHangVe) { toast('Vui lòng chọn hạng vé.', 'error'); return; }
+    const btn = document.getElementById('btnBook');
+    btn.disabled = true; btn.textContent = 'Đang đặt...';
+
+    try {
+        await api.datCho({ maChuyenBay: currentFlight.MaChuyenBay, maHangVe: selectedHangVe });
+        closeModal();
+        toast('Đặt chỗ thành công! Vào "Vé Của Tôi" để xem chi tiết.', 'success', 5000);
+    } catch (err) {
+        toast(err.message, 'error');
+        btn.disabled = false; btn.textContent = 'Đặt Vé Ngay';
+    }
+}
+
+function closeModal() {
+    document.getElementById('flightModal').classList.remove('open');
+}
+document.getElementById('flightModal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Đăng Nhập – FlightBooking</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+.auth-wrap { min-height: 100vh; display:flex; align-items:center; justify-content:center; padding:2rem; }
+.auth-card  { background:var(--navy2); border:1px solid rgba(201,168,76,0.2); border-radius:20px; padding:2.5rem; width:100%; max-width:420px; box-shadow:0 24px 64px rgba(0,0,0,0.5); }
+.auth-logo  { text-align:center; margin-bottom:2rem; }
+.auth-logo .icon { font-size:3rem; display:block; }
+.auth-logo h1 { font-family:var(--font-head); font-size:1.8rem; color:var(--gold); }
+.auth-logo p  { color:var(--gray); font-size:0.88rem; margin-top:4px; }
+.tab-btns { display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:1.5rem; }
+.tab-btn  { flex:1; padding:10px; background:none; border:none; color:var(--gray); font-family:var(--font-body); font-size:0.9rem; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; transition:all .2s; }
+.tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); font-weight:600; }
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="icon">✈️</span>
+      <h1>FlightBooking</h1>
+      <p>Đặt vé bay nhanh chóng, tiện lợi</p>
+    </div>
+
+    <div class="tab-btns">
+      <button class="tab-btn active" id="tabLogin"    onclick="switchTab('login')">Đăng Nhập</button>
+      <button class="tab-btn"        id="tabRegister" onclick="switchTab('register')">Đăng Ký</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Tên đăng nhập</label>
+        <input type="text" id="loginUser" class="form-control" placeholder="Username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mật khẩu</label>
+<div style="position:relative">
+  <input type="password" id="loginPass" class="form-control" placeholder="••••••••" required style="padding-right:44px">
+  <button type="button" onclick="togglePass('loginPass',this)" 
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray);font-size:1.1rem">👁</button>
+</div>      </div>
+      <div id="loginError" class="alert alert-error" style="display:none"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem">
+        Đăng Nhập
+      </button>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" style="display:none">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Họ và tên *</label>
+          <input type="text" id="regName" class="form-control" placeholder="Nguyễn Văn A" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">CMND/CCCD *</label>
+          <input type="text" id="regCMND" class="form-control" placeholder="9 hoặc 12 số" required maxlength="12">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Số điện thoại</label>
+        <input type="tel" id="regPhone" class="form-control" placeholder="0901234567">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tên đăng nhập *</label>
+        <input type="text" id="regUser" class="form-control" placeholder="Tối thiểu 4 ký tự" required minlength="4">
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">Mật khẩu *</label>
+          <input type="password" id="regPass" class="form-control" placeholder="≥ 6 ký tự" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Xác nhận MK *</label>
+          <input type="password" id="regPass2" class="form-control" placeholder="Nhập lại" required>
+        </div>
+      </div>
+      <div id="regError" class="alert alert-error" style="display:none"></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:.5rem">
+        Tạo Tài Khoản
+      </button>
+    </form>
+
+    <div style="text-align:center;margin-top:1.5rem">
+      <a href="/index.html" class="text-sm text-gray">← Về trang chủ</a>
+    </div>
+  </div>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+  function togglePass(id, btn) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = '👁';
+    } else {
+        input.type = 'password';
+        btn.textContent = '👁';
+    }
+}
+// Redirect if already logged in
+if (Auth.isLoggedIn()) window.location.href = '/index.html';
+
+function switchTab(tab) {
+    document.getElementById('loginForm').style.display    = tab === 'login'    ? 'block' : 'none';
+    document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+    document.getElementById('tabLogin').classList.toggle('active',    tab === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = ' Đang đăng nhập...';
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+
+    try {
+        const res = await api.login({
+            tenDangNhap: document.getElementById('loginUser').value,
+            matKhau:     document.getElementById('loginPass').value
+        });
+        Auth.setAuth(res.data.token, res.data.user);
+        toast('Đăng nhập thành công!', 'success');
+        const role = res.data.user.vaiTro;
+        setTimeout(() => {
+            if (role === 'admin')    window.location.href = '/pages/admin.html';
+            else if (role === 'manager') window.location.href = '/pages/manager.html';
+            else window.location.href = '/index.html';
+        }, 800);
+    } catch (err) {
+        errEl.textContent = err.message; errEl.style.display = 'flex';
+        btn.disabled = false; btn.textContent = 'Đăng Nhập';
+    }
+});
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pass  = document.getElementById('regPass').value;
+    const pass2 = document.getElementById('regPass2').value;
+    const errEl = document.getElementById('regError');
+    errEl.style.display = 'none';
+
+    if (pass !== pass2) {
+        errEl.textContent = 'Mật khẩu xác nhận không khớp.'; errEl.style.display = 'flex'; return;
+    }
+
+    const btn = e.target.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = ' Đang tạo...';
+
+    try {
+        await api.register({
+            tenDangNhap:  document.getElementById('regUser').value,
+            matKhau:      pass,
+            tenHanhKhach: document.getElementById('regName').value,
+            cmnd:         document.getElementById('regCMND').value,
+            soDT:         document.getElementById('regPhone').value
+        });
+        toast('Đăng ký thành công! Vui lòng đăng nhập.', 'success');
+        switchTab('login');
+    } catch (err) {
+        errEl.textContent = err.message; errEl.style.display = 'flex';
+        btn.disabled = false; btn.textContent = 'Tạo Tài Khoản';
+    }
+});
+</script>
+</body>
+</html>
