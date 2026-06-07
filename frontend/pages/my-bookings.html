@@ -112,32 +112,35 @@ function renderList(list) {
         <span class="text-sm text-gray"> ${formatDate(b.NgayDat)}</span>
       </div>
       <div class="flex-between" style="flex-wrap:wrap;gap:1rem">
-        <div class="flight-route" style="max-width:400px">
-          <div>
-            <div class="airport-code" style="font-size:3rem">${b.MaChuyenBay?.slice(0,3) || '–'}</div>
-            <div class="text-sm text-gray">${b.TenSanBayDi || ''}</div>
-          </div>
-          <div class="route-line" style="min-width:80px">
-            <div class="line"></div>
-          </div>
-          <div>
-            <div class="airport-code" style="font-size:3rem">${b.MaChuyenBay?.slice(0,3) || '–'}</div>
-            <div class="text-sm text-gray">${b.TenSanBayDen || ''}</div>
-          </div>
+        <div class="flight-route" style="max-width:800px">
+          <div style="display:flex;flex-direction:column;align-items:center;min-width:80px">
+          <div class="airport-code" style="font-size:2rem">${b.MaSanBayDi || '–'}</div>
+          <div class="text-sm text-gray" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-align:center">${b.TenSBDi || ''}</div>
+        </div>
+        <div class="route-line" style="min-width:80px">
+          <div class="line"></div>
+          <div class="duration"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;min-width:80px">
+          <div class="airport-code" style="font-size:2rem">${b.MaSanBayDen || '–'}</div>
+          <div class="text-sm text-gray" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;text-align:center">${b.TenSBDen || ''}</div>
+        </div>
         </div>
         <div style="text-align:right">
           <div class="text-sm text-gray">Chuyến: <strong>${b.MaChuyenBay}</strong> | Hạng: <strong>${b.TenHangVe}</strong></div>
           <div class="text-sm text-gray"> ${formatDate(b.NgayGio)}</div>
+
           <div class="price-amount" style="font-size:1.2rem">${formatCurrency(b.GiaTien)}</div>
         </div>
       </div>
-  <div class="divider"></div>
-    <div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
   ${b.TrangThai === 'pending' ? `
-    <button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.MaPhieuDat}')"> Huỷ Đặt</button>
-  ` : ''}
+<div class="divider"></div>
+<div style="text-align:right;display:flex;gap:8px;justify-content:flex-end">
+  <button class="btn btn-secondary btn-sm" onclick="openEditModal('${b.MaPhieuDat}','${b.MaChuyenBay}','${b.MaHangVe}')"> Sửa</button>
   <button class="btn btn-secondary btn-sm" onclick="openDeleteModal('${b.MaPhieuDat}')">Xoá</button>
-  </div>
+  <button class="btn btn-danger btn-sm" onclick="openCancelModal('${b.MaPhieuDat}')">Huỷ Đặt</button>
+  
+</div>` : ''}
     </div>`).join('');
 }
 
@@ -194,6 +197,55 @@ async function deleteBooking(maPhieuDat) {
     }
 }
 
+async function openEditModal(maPhieu, maCB, maHV) {
+    document.getElementById('editMaPhieu').value = maPhieu;
+    document.getElementById('editModalError').style.display = 'none';
+
+    try {
+        // Load danh sách chuyến bay
+        const [flights, hangVes] = await Promise.all([
+            api.searchFlights({ limit: 200 }),
+            api.getHangVe()
+        ]);
+
+        document.getElementById('editMaCB').innerHTML = flights.data.data.map(f =>
+            `<option value="${f.MaChuyenBay}" ${f.MaChuyenBay===maCB?'selected':''}>
+                ${f.MaChuyenBay} – ${f.MaSanBayDi} → ${f.MaSanBayDen} (${formatDate(f.NgayGio)})
+            </option>`
+        ).join('');
+
+        document.getElementById('editMaHV').innerHTML = hangVes.data.map(h =>
+            `<option value="${h.MaHangVe}" ${h.MaHangVe===maHV?'selected':''}>${h.TenHangVe}</option>`
+        ).join('');
+
+        document.getElementById('editModal').classList.add('open');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('open');
+}
+
+async function saveEdit() {
+    const maPhieu = document.getElementById('editMaPhieu').value;
+    const maCB    = document.getElementById('editMaCB').value;
+    const maHV    = document.getElementById('editMaHV').value;
+    const errEl   = document.getElementById('editModalError');
+    errEl.style.display = 'none';
+
+    try {
+        await api.put(`/bookings/${maPhieu}/edit`, { maChuyenBay: maCB, maHangVe: maHV });
+        toast('Cập nhật phiếu thành công!', 'success');
+        closeEditModal();
+        await loadBookings();
+    } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'flex';
+    }
+}
+
 </script>
 
 <div class="modal-overlay" id="deleteModal">
@@ -204,6 +256,27 @@ async function deleteBooking(maPhieuDat) {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeDeleteModal()">Không</button>
       <button class="btn btn-danger" id="btnConfirmDelete">Xoá</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h2 class="modal-title"> Sửa Phiếu Đặt</h2>
+    <input type="hidden" id="editMaPhieu">
+    <div class="form-group">
+      <label class="form-label">Chuyến bay</label>
+      <select id="editMaCB" class="form-control"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Hạng vé</label>
+      <select id="editMaHV" class="form-control"></select>
+    </div>
+    <div id="editModalError" class="alert alert-error" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeEditModal()">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveEdit()"> Lưu</button>
     </div>
   </div>
 </div>

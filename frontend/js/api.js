@@ -131,7 +131,7 @@ function renderNavbar(activePage = '') {
     if (user && user.vaiTro === 'customer') {
         links.push({ href: '/pages/my-bookings.html', label: 'Vé Của Tôi', id: 'mybookings' });
     }
-    if (user && (user.vaiTro === 'manager' || user.vaiTro === 'admin')) {
+    if (user && (user.vaiTro === 'manager' )) {
         links.push({ href: '/pages/manager.html', label: 'Quản Lý', id: 'manager' });
     }
     if (user && user.vaiTro === 'admin') {

@@ -128,24 +128,26 @@ const BookingDAL = {
      * Lấy lịch sử đặt vé của hành khách
      */
     async getByHanhKhach(maHK) {
-        const [rows] = await pool.execute(
-            `SELECT pdc.*, cb.NgayGio, cb.ThoiGianBay,
-                    sbd.TenSanBay AS TenSanBayDi,
-                    sbn.TenSanBay AS TenSanBayDen,
-                    hv.TenHangVe,
-                    ve.MaVe
-             FROM PHIEUDATCHO pdc
-             JOIN CHUYENBAY cb   ON pdc.MaChuyenBay = cb.MaChuyenBay
-             JOIN SANBAY sbd     ON cb.MaSanBayDi = sbd.MaSanBay
-             JOIN SANBAY sbn     ON cb.MaSanBayDen = sbn.MaSanBay
-             JOIN HANGVE hv      ON pdc.MaHangVe = hv.MaHangVe
-             LEFT JOIN VECHUYENBAY ve ON ve.MaPhieuDat = pdc.MaPhieuDat
-             WHERE pdc.MaHK = ?
-             ORDER BY pdc.NgayDat DESC`,
-            [maHK]
-        );
-        return rows;
-    },
+    const [rows] = await pool.execute(
+        `SELECT pdc.*, 
+                cb.NgayGio, cb.ThoiGianBay,
+                cb.MaSanBayDi, cb.MaSanBayDen,
+                sbd.TenSanBay AS TenSBDi,
+                sbn.TenSanBay AS TenSBDen,
+                hv.TenHangVe,
+                ve.MaVe
+         FROM PHIEUDATCHO pdc
+         JOIN CHUYENBAY cb   ON pdc.MaChuyenBay = cb.MaChuyenBay
+         JOIN SANBAY sbd     ON cb.MaSanBayDi = sbd.MaSanBay
+         JOIN SANBAY sbn     ON cb.MaSanBayDen = sbn.MaSanBay
+         JOIN HANGVE hv      ON pdc.MaHangVe = hv.MaHangVe
+         LEFT JOIN VECHUYENBAY ve ON ve.MaPhieuDat = pdc.MaPhieuDat
+         WHERE pdc.MaHK = ?
+         ORDER BY pdc.NgayDat DESC`,
+        [maHK]
+    );
+    return rows;
+},
 
     /**
      * Báo cáo doanh thu theo tháng

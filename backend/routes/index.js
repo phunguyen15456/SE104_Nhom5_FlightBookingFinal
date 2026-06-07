@@ -29,9 +29,9 @@ router.delete('/admin/accounts/:maTK',   authenticate, authorize('admin'), AuthC
 router.get('/flights',        FlightController.search);      // Public
 router.get('/flights/:maChuyenBay', FlightController.getDetail); // Public
 
-router.post  ('/flights',                authenticate, authorize('manager','admin'), FlightController.create);
-router.put   ('/flights/:maChuyenBay',   authenticate, authorize('manager','admin'), FlightController.update);
-router.delete('/flights/:maChuyenBay',   authenticate, authorize('manager','admin'), FlightController.delete);
+router.post  ('/flights',                authenticate, authorize('manager'), FlightController.create);
+router.put   ('/flights/:maChuyenBay',   authenticate, authorize('manager'), FlightController.update);
+router.delete('/flights/:maChuyenBay',   authenticate, authorize('manager'), FlightController.delete);
 
 // Sân bay
 router.get   ('/airports',           FlightController.getAirports); // Public
@@ -43,22 +43,22 @@ router.delete('/airports/:maSanBay', authenticate, authorize('admin'), FlightCon
 // BOOKING ROUTES
 // ============================================================
 router.post('/bookings',                    authenticate, authorize('customer'), BookingController.datCho);
-router.post('/bookings/:maPhieuDat/ticket', authenticate, authorize('manager','admin'), BookingController.xuatVe);
+router.post('/bookings/:maPhieuDat/ticket', authenticate, authorize('manager'), BookingController.xuatVe);
 router.delete('/bookings/:maPhieuDat',      authenticate, BookingController.huyDatCho);
-router.delete('/bookings/:maPhieuDat/delete', authenticate, authorize('customer'), BookingController.xoaPhieuDat);
+router.delete('/bookings/:maPhieuDat/delete', authenticate, authorize('customer', 'manager'), BookingController.xoaPhieuDat);
 router.get('/bookings/my',                  authenticate, authorize('customer'), BookingController.lichSu);
-router.get('/bookings',                     authenticate, authorize('manager','admin'), BookingController.getAllBookings);
+router.get('/bookings',                     authenticate, authorize('manager'), BookingController.getAllBookings);
 
 // ============================================================
 // REPORT ROUTES
 // ============================================================
-router.get('/reports/revenue/monthly',  authenticate, authorize('manager','admin'), BookingController.doanhThuThang);
-router.get('/reports/revenue/flights',  authenticate, authorize('manager','admin'), BookingController.doanhThuChuyenBay);
+router.get('/reports/revenue/monthly',  authenticate, authorize('manager'), BookingController.doanhThuThang);
+router.get('/reports/revenue/flights',  authenticate, authorize('manager'), BookingController.doanhThuChuyenBay);
 
 // ============================================================
 // THAM SO & HANG VE ROUTES (Admin)
 // ============================================================
-router.get('/thamso',          authenticate, authorize('admin'), ThamSoController.getAll);
+router.get('/thamso',          authenticate, authorize('admin','manager'), ThamSoController.getAll);
 router.put('/thamso/:maThamSo',authenticate, authorize('admin'), ThamSoController.update);
 router.get('/thamso/logs',     authenticate, authorize('admin'), ThamSoController.getLogs);
 
@@ -69,6 +69,61 @@ router.delete('/hangve/:maHangVe',   authenticate, authorize('admin'), ThamSoCon
 
 
 
-router.get('/reports/revenue/yearly', authenticate, authorize('manager','admin'), BookingController.doanhThuNam);
+router.get('/reports/revenue/yearly', authenticate, authorize('manager'), BookingController.doanhThuNam);
+
+
+
+router.put('/bookings/:maPhieuDat/edit', authenticate, authorize('manager','customer'), async (req, res) => {
+    try {
+        const { maPhieuDat } = req.params;
+        const { maChuyenBay, maHangVe } = req.body;
+        const { pool } = require('../config/database');
+
+        const [[phieu]] = await pool.execute(
+            'SELECT * FROM PHIEUDATCHO WHERE MaPhieuDat = ? AND TrangThai = ?',
+            [maPhieuDat, 'pending']
+        );
+        if (!phieu) return res.status(400).json({ success: false, message: 'Chỉ sửa được phiếu đang chờ xử lý.' });
+
+        // Hoàn ghế cũ
+        await pool.execute(
+            'UPDATE CHITIETHANGVE SET SLGheConLai = SLGheConLai + 1 WHERE MaChuyenBay = ? AND MaHangVe = ?',
+            [phieu.MaChuyenBay, phieu.MaHangVe]
+        );
+
+        // Kiểm tra ghế mới
+        const [[newSeat]] = await pool.execute(
+            'SELECT SLGheConLai, cb.GiaVe, hv.TiLe FROM CHITIETHANGVE cthv JOIN CHUYENBAY cb ON cthv.MaChuyenBay = cb.MaChuyenBay JOIN HANGVE hv ON cthv.MaHangVe = hv.MaHangVe WHERE cthv.MaChuyenBay = ? AND cthv.MaHangVe = ?',
+            [maChuyenBay, maHangVe]
+        );
+        if (!newSeat || newSeat.SLGheConLai <= 0) {
+            // Hoàn lại ghế cũ
+            await pool.execute(
+                'UPDATE CHITIETHANGVE SET SLGheConLai = SLGheConLai - 1 WHERE MaChuyenBay = ? AND MaHangVe = ?',
+                [phieu.MaChuyenBay, phieu.MaHangVe]
+            );
+            return res.status(400).json({ success: false, message: 'Không còn ghế trống.' });
+        }
+
+        // Trừ ghế mới
+        await pool.execute(
+            'UPDATE CHITIETHANGVE SET SLGheConLai = SLGheConLai - 1 WHERE MaChuyenBay = ? AND MaHangVe = ?',
+            [maChuyenBay, maHangVe]
+        );
+
+        // Tính giá mới
+        const giaMoi = Math.round(newSeat.GiaVe * newSeat.TiLe / 100);
+
+        // Cập nhật phiếu
+        await pool.execute(
+            'UPDATE PHIEUDATCHO SET MaChuyenBay = ?, MaHangVe = ?, GiaTien = ? WHERE MaPhieuDat = ?',
+            [maChuyenBay, maHangVe, giaMoi, maPhieuDat]
+        );
+
+        res.json({ success: true, message: 'Cập nhật thành công.' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
 
 module.exports = router;

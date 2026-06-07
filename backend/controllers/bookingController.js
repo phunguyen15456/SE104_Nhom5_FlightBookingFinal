@@ -89,7 +89,9 @@ const BookingController = {
             [maPhieuDat]
         );
         if (!phieu) return res.status(404).json({ success: false, message: 'Phiếu không tồn tại.' });
-        if (phieu.MaHK !== maHK) return res.status(403).json({ success: false, message: 'Không có quyền xoá.' });
+        if (req.user.vaiTro === 'customer' && phieu.MaHK !== maHK) {
+    return res.status(403).json({ success: false, message: 'Không có quyền xoá.' });
+        }
         if (phieu.TrangThai === 'confirmed') return res.status(400).json({ success: false, message: 'Không thể xoá vé đã xác nhận.' });
 
         // Xoá vé nếu có

@@ -126,9 +126,8 @@
 
 
             <!-- Báo cáo theo năm -->
-<div class="card mb-3">
-    <div class="card-header">
-        <span class="card-title">Doanh Thu Theo Năm</span>
+<div class="card mb-3" style="margin-top:2rem">
+    <div class="card-header"><span class="card-title"> Doanh Thu Theo Năm</span>
         <button class="btn btn-secondary btn-sm" onclick="loadYearlyReport()">Tải lại</button>
     </div>
     <div class="table-wrap">
@@ -197,13 +196,12 @@
       <div id="hangVeInputs"></div>
       <div class="divider"></div>
 <div class="flex-between mb-2">
-  <p class="text-sm text-gray">Sân bay trung gian (tối đa 2):</p>
+  <p class="text-sm text-gray">Sân bay trung gian :</p>
   <button type="button" class="btn btn-secondary btn-sm" onclick="addTrungGian()">+ Thêm</button>
 </div>
 <div id="trungGianInputs"></div>
       
-      <div id="fmError" class="alert alert-error" style="display:none"></div>
-    </form>
+<div id="fmError" class="alert alert-error" style="display:none"></div>    </form>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeFlightModal()">Huỷ</button>
       <button class="btn btn-primary" onclick="submitFlightForm()"> Lưu</button>
@@ -232,6 +230,18 @@ async function loadMeta() {
           <label class="form-label" style="margin:0;align-self:center">${h.TenHangVe} (${h.TiLe}%)</label>
           <input type="number" class="form-control" id="seats_${h.MaHangVe}" placeholder="Số ghế" min="0" value="0">
         </div>`).join('');
+        // Load tham số hiển thị lên label
+    const resThamSo = await api.getThamSo();
+    const soToiDa    = resThamSo.data.find(t => t.TenThamSo === 'SoSanBayTGToiDa')?.GiaTri || 2;
+    const tgdToiThieu = resThamSo.data.find(t => t.TenThamSo === 'TGDToiThieu')?.GiaTri || 10;
+    const tgdToiDa    = resThamSo.data.find(t => t.TenThamSo === 'TGDToiDa')?.GiaTri    || 20;
+
+    document.getElementById('lblSBTG').textContent = `Sân bay trung gian (tối đa ${soToiDa}):`;
+
+    // Lưu vào biến global để dùng trong addTrungGian
+    window._soToiDa    = soToiDa;
+    window._tgdToiThieu = tgdToiThieu;
+    window._tgdToiDa    = tgdToiDa;
 }
 
 async function loadFlights() {
@@ -269,8 +279,8 @@ function renderFlightTable(list) {
           <td>${formatCurrency(f.GiaVe)}</td>
           <td><span style="color:${f.TongGheConLai>10?'var(--success)':f.TongGheConLai>0?'var(--gold)':'var(--danger)'}">${f.TongGheConLai||0}</span></td>
           <td style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm" onclick="editFlight('${f.MaChuyenBay}')">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteFlight('${f.MaChuyenBay}')">🗑</button>
+            <button class="btn btn-secondary btn-sm" onclick="editFlight('${f.MaChuyenBay}')">Cập nhật</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteFlight('${f.MaChuyenBay}')">Xóa</button>
           </td>
         </tr>`).join('');
 }
@@ -301,9 +311,23 @@ function renderBookingTable(list) {
           <td>${formatDate(b.NgayDat)}</td>
           <td><span class="status-badge status-${b.TrangThai}">${{pending:' Chờ',confirmed:' Xác nhận',cancelled:' Huỷ'}[b.TrangThai]||b.TrangThai}</span></td>
           <td>${b.MaVe ? `<span class="text-gold">${b.MaVe}</span>` : '–'}</td>
-          <td>${b.TrangThai==='pending'
-              ? `<button class="btn btn-success btn-sm" onclick="xuatVe('${b.MaPhieuDat}')">Xuất vé</button>`
-              : ''}</td>
+          <td style="white-space:nowrap">
+          <div style="display:flex;gap:6px">
+            ${b.TrangThai==='pending' ? `
+              <button class="btn btn-success btn-sm" style="min-width:72px" onclick="xuatVe('${b.MaPhieuDat}')">Xuất vé</button>
+              <button class="btn btn-secondary btn-sm" style="min-width:50px" onclick="openEditBooking('${b.MaPhieuDat}','${b.MaChuyenBay}','${b.MaHangVe}')">Sửa</button>
+              <button class="btn btn-danger btn-sm" style="min-width:50px" onclick="deleteBooking('${b.MaPhieuDat}')">Xoá</button>
+            ` : b.TrangThai==='cancelled' ? `
+              <button class="btn btn-secondary btn-sm" style="min-width:72px;opacity:0.3" disabled>Xuất vé</button>
+              <button class="btn btn-secondary btn-sm" style="min-width:50px;opacity:0.3" disabled>Sửa</button>
+              <button class="btn btn-danger btn-sm" style="min-width:50px" onclick="deleteBooking('${b.MaPhieuDat}')">Xoá</button>
+            ` : `
+              <button class="btn btn-secondary btn-sm" style="min-width:72px;opacity:0.3" disabled>Xuất vé</button>
+              <button class="btn btn-secondary btn-sm" style="min-width:50px;opacity:0.3" disabled>Sửa</button>
+              <button class="btn btn-secondary btn-sm" style="min-width:50px;opacity:0.3" disabled>Xoá</button>
+            `}
+          </div>
+        </td>
         </tr>`).join('');
 }
 
@@ -338,15 +362,56 @@ async function editFlight(ma) {
         document.getElementById('fmNgayGio').value = new Date(f.NgayGio).toISOString().slice(0,16);
         document.getElementById('fmTGB').value = f.ThoiGianBay;
 
-        // Điền số ghế hiện tại vào form
+        // Điền số ghế hiện tại
         f.hangVe.forEach(hv => {
             const input = document.getElementById(`seats_${hv.MaHangVe}`);
             if (input) input.value = hv.SLGhe;
         });
 
+        // Load tham số nếu chưa có
+        if (!window._soToiDa) {
+            const resThamSo = await api.getThamSo();
+            window._soToiDa     = resThamSo.data.find(t => t.TenThamSo === 'SoSanBayTGToiDa')?.GiaTri || 2;
+            window._tgdToiThieu = resThamSo.data.find(t => t.TenThamSo === 'TGDToiThieu')?.GiaTri || 10;
+            window._tgdToiDa    = resThamSo.data.find(t => t.TenThamSo === 'TGDToiDa')?.GiaTri    || 20;
+        }
+
+        // Điền sân bay trung gian hiện tại
+        document.getElementById('trungGianInputs').innerHTML = '';
+        for (const tg of f.sanBayTrungGian || []) {
+            const idx = Date.now() + Math.random();
+            const sbOpts = airportList.map(a =>
+                `<option value="${a.MaSanBay}" ${a.MaSanBay === tg.MaSanBay ? 'selected' : ''}>${a.MaSanBay} – ${a.TenSanBay}</option>`
+            ).join('');
+
+            const div = document.createElement('div');
+            div.className = 'grid-2 mb-1';
+            div.id = `tg_${idx}`;
+            div.innerHTML = `
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Sân bay</label>
+                    <select class="form-control tg-sanbay">
+                        <option value="">Chọn...</option>${sbOpts}
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;align-items:flex-end">
+                    <div class="form-group" style="margin:0;flex:1">
+                        <label class="form-label">Thời gian dừng (phút)</label>
+                        <input type="number" class="form-control tg-tgd"
+                          placeholder="Nhập số phút"
+                          min="0">
+                    </div>
+                    <button type="button" class="btn btn-danger btn-sm"
+                            onclick="document.getElementById('tg_${idx}').remove()">🗑</button>
+                </div>`;
+            document.getElementById('trungGianInputs').appendChild(div);
+        }
+
         document.getElementById('flightModal').classList.add('open');
-    } catch (err) { toast(err.message,'error'); }
+    } catch (err) { toast(err.message, 'error'); }
 }
+
+
 function openFlightModal() {
     document.getElementById('fmMode').value = 'add';
     document.getElementById('fmTitle').textContent = 'Thêm Chuyến Bay';
@@ -374,9 +439,7 @@ async function submitFlightForm() {
           slGhe: +(document.getElementById(`seats_${h.MaHangVe}`)?.value || 0)
       }));
 
-      if (mode === 'add') {
-          body.sanBayTrungGian = getTrungGianData();
-      }
+      body.sanBayTrungGian = getTrungGianData();
     try {
         if (mode === 'add') await api.createFlight(body);
         else await api.updateFlight(body.maChuyenBay, body);
@@ -403,8 +466,8 @@ async function loadReport() {
             const m = months.find(x=>x.Thang===i+1);
             const h = m ? Math.round((Number(m.DoanhThu)/maxVal)*140)+10 : 8;
             return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-                <div class="text-sm text-gold" style="font-size:.7rem">${m?formatCurrency(Number(m.DoanhThu)).replace('₫','').replace(/\./g,'').replace(',','k'):''}</div>
-                <div style="width:100%;background:${m?'linear-gradient(to top,var(--gold),var(--sky))':'rgba(255,255,255,0.05)'};height:${h}px;border-radius:4px 4px 0 0;cursor:pointer" 
+                <div style="font-size:.7rem;color:#1a56db;font-weight:600">${m?formatCurrency(Number(m.DoanhThu)).replace('₫','').replace(/\./g,'').replace(',','k'):''}</div>
+                <div style="width:100%;background: ${m ? 'linear-gradient(to top, #1a56db, #60a5fa)' : '#e2e8f0'};height:${h}px;border-radius:4px 4px 0 0;cursor:pointer" 
                      title="T${i+1}: ${m?formatCurrency(m.DoanhThu):'0'}" 
                      onclick="loadFlightReport(${nam},${i+1})"></div>
                 <div class="text-sm" style="font-size:.7rem;color:var(--gray)">T${i+1}</div>
@@ -434,6 +497,37 @@ async function loadFlightReport(nam, thang) {
     } catch {}
 }
 
+async function loadYearlyReport() {
+    try {
+        const res = await api.revenueYearly();
+        const tbody = document.getElementById('yearlyBody');
+
+        if (!tbody) return;
+
+        if (res.data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text2)">Chưa có dữ liệu</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = res.data.map(r => `
+        <tr>
+            <td style="font-weight:700;color:var(--primary)">${r.Nam}</td>
+            <td>${r.SoVe}</td>
+            <td style="color:var(--primary);font-weight:600">${formatCurrency(r.DoanhThu)}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="viewYearDetail(${r.Nam})">Xem tháng</button>
+            </td>
+        </tr>`).join('');
+    } catch (err) {
+        toast(err.message, 'error');
+    }
+}
+
+function viewYearDetail(nam) {
+    document.getElementById('reportYear').value = nam;
+    loadReport();
+}
+
 function switchTab(tab, el) {
     ['flights','bookings','report'].forEach(t => {
         document.getElementById(`tab-${t}`).style.display = t===tab?'block':'none';
@@ -443,10 +537,22 @@ function switchTab(tab, el) {
     if (tab === 'report') loadReport();
 }
 
-function addTrungGian() {
+async function addTrungGian() {
     const container = document.getElementById('trungGianInputs');
     const count = container.children.length;
-    if (count >= 2) { toast('Tối đa 2 sân bay trung gian.', 'error'); return; }
+
+    // Nếu chưa load tham số thì load
+    if (!window._soToiDa) {
+        const resThamSo = await api.getThamSo();
+        window._soToiDa     = resThamSo.data.find(t => t.TenThamSo === 'SoSanBayTGToiDa')?.GiaTri || 2;
+        window._tgdToiThieu = resThamSo.data.find(t => t.TenThamSo === 'TGDToiThieu')?.GiaTri || 10;
+        window._tgdToiDa    = resThamSo.data.find(t => t.TenThamSo === 'TGDToiDa')?.GiaTri    || 20;
+    }
+
+    if (count >= window._soToiDa) {
+        toast(`Tối đa ${window._soToiDa} sân bay trung gian theo quy định.`, 'error');
+        return;
+    }
 
     const idx = Date.now();
     const sbOpts = airportList.map(a =>
@@ -463,8 +569,10 @@ function addTrungGian() {
         </div>
         <div style="display:flex;gap:8px;align-items:flex-end">
             <div class="form-group" style="margin:0;flex:1">
-                <label class="form-label">Thời gian dừng (phút)</label>
-                <input type="number" class="form-control tg-tgd" placeholder="10-20" min="10" max="20">
+                <label class="form-label">Thời gian dừng (phút)</label>                
+                <input type="number" class="form-control tg-tgd"
+                    placeholder="Nhập số phút"
+                    min="0">
             </div>
             <button type="button" class="btn btn-danger btn-sm"
                     onclick="document.getElementById('tg_${idx}').remove()">🗑</button>
@@ -485,33 +593,78 @@ function getTrungGianData() {
 }
 
 
-async function loadYearlyReport() {
+
+
+
+async function openEditBooking(maPhieu, maCB, maHV) {
+    document.getElementById('editMaPhieu').value = maPhieu;
+    document.getElementById('editError').style.display = 'none';
+
+    // Load chuyến bay
+    const cbOpts = allFlights.map(f =>
+        `<option value="${f.MaChuyenBay}" ${f.MaChuyenBay===maCB?'selected':''}>${f.MaChuyenBay} – ${f.MaSanBayDi}→${f.MaSanBayDen}</option>`
+    ).join('');
+    document.getElementById('editMaCB').innerHTML = cbOpts;
+
+    // Load hạng vé
+    const res = await api.getHangVe();
+    document.getElementById('editMaHV').innerHTML = res.data.map(h =>
+        `<option value="${h.MaHangVe}" ${h.MaHangVe===maHV?'selected':''}>${h.TenHangVe}</option>`
+    ).join('');
+
+    document.getElementById('editBookingModal').classList.add('open');
+}
+
+async function saveEditBooking() {
+    const maPhieu = document.getElementById('editMaPhieu').value;
+    const maCB    = document.getElementById('editMaCB').value;
+    const maHV    = document.getElementById('editMaHV').value;
+    const errEl   = document.getElementById('editError');
+    errEl.style.display = 'none';
+
     try {
-        const res = await api.revenueYearly();
-        const tbody = document.getElementById('yearlyBody');
-
-        if (res.data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--gray)">Chưa có dữ liệu</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = res.data.map(r => `
-        <tr>
-            <td class="text-gold" style="font-weight:700">${r.Nam}</td>
-            <td>${r.SoVe}</td>
-            <td class="text-gold">${formatCurrency(r.DoanhThu)}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm" onclick="
-                    document.getElementById('reportYear').value=${r.Nam};
-                    loadReport();
-                ">Xem tháng</button>
-            </td>
-        </tr>`).join('');
+        await api.put(`/bookings/${maPhieu}/edit`, { maChuyenBay: maCB, maHangVe: maHV });
+        toast('Cập nhật phiếu thành công!', 'success');
+        closeModal('editBookingModal');
+        await loadBookings();
     } catch (err) {
-        toast(err.message, 'error');
+        errEl.textContent = err.message;
+        errEl.style.display = 'flex';
     }
 }
 
+async function deleteBooking(maPhieu) {
+    if (!confirm(`Xoá phiếu ${maPhieu}?`)) return;
+    try {
+        await api.delete(`/bookings/${maPhieu}/delete`);
+        toast('Đã xoá phiếu.', 'success');
+        await loadBookings();
+    } catch (err) { toast(err.message, 'error'); }
+}
+
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
 </script>
+<div class="modal-overlay" id="editBookingModal">
+  <div class="modal">
+    <h2 class="modal-title"> Sửa Phiếu Đặt</h2>
+    <input type="hidden" id="editMaPhieu">
+    <div class="form-group">
+      <label class="form-label">Chuyến bay</label>
+      <select id="editMaCB" class="form-control"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Hạng vé</label>
+      <select id="editMaHV" class="form-control"></select>
+    </div>
+    <div id="editError" class="alert alert-error" style="display:none"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('editBookingModal')">Huỷ</button>
+      <button class="btn btn-primary" onclick="saveEditBooking()"> Lưu</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

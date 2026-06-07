@@ -78,37 +78,75 @@ const [[lastCT]] = await pool.execute(
         return FlightDAL.getById(data.maChuyenBay);
     },
 
-    async update(maChuyenBay, fields) {
-        if (fields.thoiGianBay !== undefined) {
-            const tgbToiThieu = await getThamSo('TGBToiThieu');
-            if (tgbToiThieu && fields.thoiGianBay < tgbToiThieu) {
-                throw new Error(`Thời gian bay phải >= ${tgbToiThieu} phút.`);
+async update(maChuyenBay, fields) {
+    if (fields.thoiGianBay !== undefined) {
+        const tgbToiThieu = await getThamSo('TGBToiThieu');
+        if (tgbToiThieu && fields.thoiGianBay < tgbToiThieu) {
+            throw new Error(`Thời gian bay phải >= ${tgbToiThieu} phút.`);
+        }
+    }
+
+    const dbFields = {};
+    if (fields.giaVe !== undefined)       dbFields.GiaVe = fields.giaVe;
+    if (fields.ngayGio !== undefined)      dbFields.NgayGio = fields.ngayGio;
+    if (fields.thoiGianBay !== undefined)  dbFields.ThoiGianBay = fields.thoiGianBay;
+    if (fields.maSanBayDi !== undefined)   dbFields.MaSanBayDi = fields.maSanBayDi;
+    if (fields.maSanBayDen !== undefined)  dbFields.MaSanBayDen = fields.maSanBayDen;
+
+    if (Object.keys(dbFields).length > 0) {
+        const updated = await FlightDAL.update(maChuyenBay, dbFields);
+        if (!updated) throw new Error('Chuyến bay không tồn tại.');
+    }
+
+    // Cập nhật số ghế nếu có
+    if (fields.hangVe && Array.isArray(fields.hangVe)) {
+        for (const hv of fields.hangVe) {
+            if (hv.slGhe > 0) {
+                await FlightDAL.upsertHangVe(maChuyenBay, hv.maHangVe, hv.slGhe);
             }
         }
+    }
 
-        const dbFields = {};
-        if (fields.giaVe !== undefined)       dbFields.GiaVe = fields.giaVe;
-        if (fields.ngayGio !== undefined)      dbFields.NgayGio = fields.ngayGio;
-        if (fields.thoiGianBay !== undefined)  dbFields.ThoiGianBay = fields.thoiGianBay;
-        if (fields.maSanBayDi !== undefined)   dbFields.MaSanBayDi = fields.maSanBayDi;
-        if (fields.maSanBayDen !== undefined)  dbFields.MaSanBayDen = fields.maSanBayDen;
-
-        if (Object.keys(dbFields).length > 0) {
-            const updated = await FlightDAL.update(maChuyenBay, dbFields);
-            if (!updated) throw new Error('Chuyến bay không tồn tại.');
+    // Cập nhật sân bay trung gian nếu có
+    if (fields.sanBayTrungGian !== undefined) {
+        const soSBTGToiDa = await getThamSo('SoSanBayTGToiDa') || 2;
+        if (fields.sanBayTrungGian.length > soSBTGToiDa) {
+            throw new Error(`Số sân bay trung gian tối đa là ${soSBTGToiDa}.`);
         }
 
-        // Cập nhật số ghế nếu có
-        if (fields.hangVe && Array.isArray(fields.hangVe)) {
-            for (const hv of fields.hangVe) {
-                if (hv.slGhe > 0) {
-                    await FlightDAL.upsertHangVe(maChuyenBay, hv.maHangVe, hv.slGhe);
+        const tgdToiThieu = await getThamSo('TGDToiThieu') || 10;
+        const tgdToiDa    = await getThamSo('TGDToiDa')    || 20;
+
+        // Xoá sân bay trung gian cũ
+        await pool.execute(
+            'DELETE FROM CT_SANBAYTRUNGGIAN WHERE MaChuyenBay = ?',
+            [maChuyenBay]
+        );
+
+        // Thêm sân bay trung gian mới
+        if (fields.sanBayTrungGian.length > 0) {
+            const [[lastCT]] = await pool.execute(
+                "SELECT MaCT FROM CT_SANBAYTRUNGGIAN ORDER BY MaCT DESC LIMIT 1"
+            );
+            let maCTIndex = lastCT ? parseInt(lastCT.MaCT.replace('CT', '')) + 1 : 1;
+
+            for (const tg of fields.sanBayTrungGian) {
+                if (tg.thoiGianDung < tgdToiThieu || tg.thoiGianDung > tgdToiDa) {
+                    throw new Error(`Thời gian dừng phải từ ${tgdToiThieu} đến ${tgdToiDa} phút.`);
                 }
+                const maCT = `CT${String(maCTIndex++).padStart(3, '0')}`;
+                await FlightDAL.addTrungGian({
+                    maCT, thoiGianDung: tg.thoiGianDung,
+                    ghiChu: tg.ghiChu || null,
+                    maChuyenBay: maChuyenBay,
+                    maSanBay: tg.maSanBay
+                });
             }
         }
+    }
 
-        return FlightDAL.getById(maChuyenBay);
-    },
+    return FlightDAL.getById(maChuyenBay);
+},
 
     async delete(maChuyenBay) {
         return FlightDAL.delete(maChuyenBay);
