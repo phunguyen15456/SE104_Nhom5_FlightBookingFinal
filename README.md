@@ -1,4 +1,4 @@
-# ✈ FlightBooking – Hệ Thống Quản Lý Bán Vé Chuyến Bay
+# FlightBooking – Hệ Thống Quản Lý Bán Vé Chuyến Bay
 
 ## Yêu cầu phần mềm cần cài đặt
 
@@ -99,7 +99,7 @@ USE flight_booking;
 
 ### 4.1 Tạo file `.env`
 
-Vào thư mục `backend`, copy file `.env.example` → đổi tên thành `.env`
+Vào thư mục `backend`, tìm file `.env.example` → đổi tên thành `.env`
 
 Mở file `.env` và điền thông tin:
 
