@@ -89,6 +89,7 @@ CREATE DATABASE flight_booking
 USE flight_booking;
 ```
 
+
 4. Nhấn **File → Open SQL Script** → chọn file `database/init.sql`
 5. Nhấn **⚡ Execute** (hoặc **Ctrl + Shift + Enter**)
 6. Kiểm tra bên trái: **Schemas → flight_booking → Tables** thấy đủ 9 bảng là thành công
