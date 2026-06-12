@@ -1,108 +1,186 @@
-# FlightBooking – Hệ Thống Quản Lý Bán Vé Chuyến Bay
+# ĐỒ ÁN MÔN HỌC SE104
+
+# HỆ THỐNG QUẢN LÝ BÁN VÉ CHUYẾN BAY (FLIGHTBOOKING)
+
+## Giảng viên hướng dẫn
+
+**TS. Huỳnh Ngọc Tín**
+
+## Nhóm thực hiện
+
+**Nhóm 5 – Lớp SE104.Q26**
+
+| STT | Họ tên | MSSV |
+|-----|---------|---------|
+| 1 | Nguyễn Tấn Phát | 24521308 |
+| 2 | Lý Hoài Phong | 24521334 |
+| 3 | Lê Minh Phú | 24521354 |
+| 4 | Nguyễn Bình Phú | 24521356 |
+
+---
+
+## Giới thiệu
+
+FlightBooking là hệ thống quản lý bán vé chuyến bay được xây dựng nhằm hỗ trợ quản lý các hoạt động liên quan đến sân bay, chuyến bay, hạng vé, đặt chỗ, xuất vé và thống kê doanh thu. Hệ thống được phát triển theo mô hình ứng dụng Web với cơ chế phân quyền cho ba nhóm người dùng gồm Admin, Manager và Customer.
+
+---
 
 ## Yêu cầu phần mềm cần cài đặt
 
-Trước khi bắt đầu, cài đặt đầy đủ 4 phần mềm sau:
+Trước khi bắt đầu, cần cài đặt đầy đủ các phần mềm sau:
 
 | Phần mềm | Link tải | Ghi chú |
 |---|---|---|
-| Node.js LTS | https://nodejs.org/ | Chọn bản **LTS** |
-| MySQL 8.0 | https://dev.mysql.com/downloads/installer/ | Chọn **mysql-installer-community** |
-| MySQL Workbench | https://dev.mysql.com/downloads/workbench/ | Công cụ quản lý database |
-| Visual Studio Code | https://code.visualstudio.com/ | Trình soạn thảo code |
+| Node.js LTS | https://nodejs.org/ | Chọn bản LTS |
+| MySQL 8.0 | https://dev.mysql.com/downloads/installer/ | Chọn mysql-installer-community |
+| MySQL Workbench | https://dev.mysql.com/downloads/workbench/ | Công cụ quản lý cơ sở dữ liệu |
+| Visual Studio Code | https://code.visualstudio.com/ | Trình soạn thảo mã nguồn |
 
 ---
 
-## Bước 1 — Cài đặt MySQL
+## Công nghệ sử dụng
 
-1. Chạy file **MySQL Installer** vừa tải về
-2. Chọn cài **MySQL Server 8.0** + **MySQL Workbench**
-3. Trong bước **Accounts and Roles**, đặt mật khẩu cho tài khoản `root`
-   - Ví dụ: `Root@123`
-   - **Nhớ mật khẩu này** — sẽ dùng ở các bước sau
-4. Các bước còn lại nhấn **Next** → **Execute** → **Finish**
+### Frontend
 
-Kiểm tra MySQL đã chạy chưa:
-- Nhấn **Windows + R** → gõ `services.msc` → tìm **MySQL80** → đảm bảo trạng thái là **Running**
+- HTML5
+- CSS3
+- JavaScript
+
+### Backend
+
+- Node.js
+- ExpressJS
+
+### Cơ sở dữ liệu
+
+- MySQL Server 8.0
+
+### Công cụ hỗ trợ
+
+- Visual Studio Code
+- Git
+- GitHub
+- MySQL Workbench
+- Postman
 
 ---
 
-## Bước 2 — Tải source code về máy
+## Kiến trúc hệ thống
 
-Tạo thư mục project và sắp xếp file theo cấu trúc sau:
+Hệ thống được xây dựng theo mô hình Client – Server và tổ chức mã nguồn theo kiến trúc phân tầng gồm:
 
-```
+- Route Layer
+- Controller Layer
+- Service Layer
+- Data Access Layer (DAL)
+- Database Layer
+
+Mô hình này giúp mã nguồn dễ bảo trì, dễ mở rộng và thuận tiện cho việc phát triển theo nhóm.
+
+---
+
+## Cấu trúc thư mục
+
+```text
 flight-booking/
 ├── database/
 │   └── init.sql
 ├── backend/
 │   ├── config/
-│   │   └── database.js
-│   ├── middleware/
-│   │   └── auth.js
-│   ├── dal/
-│   │   ├── authDAL.js
-│   │   ├── flightDAL.js
-│   │   └── bookingDAL.js
-│   ├── services/
-│   │   ├── authService.js
-│   │   ├── flightService.js
-│   │   ├── bookingService.js
-│   │   └── thamsoService.js
 │   ├── controllers/
-│   │   ├── authController.js
-│   │   ├── flightController.js
-│   │   ├── bookingController.js
-│   │   └── thamsoController.js
+│   ├── services/
+│   ├── dal/
+│   ├── middleware/
 │   ├── routes/
-│   │   └── index.js
 │   ├── server.js
 │   ├── package.json
 │   └── .env.example
 └── frontend/
     ├── css/
-    │   └── style.css
     ├── js/
-    │   └── api.js
     ├── pages/
-    │   ├── login.html
-    │   ├── register.html
-    │   ├── flights.html
-    │   ├── my-bookings.html
-    │   ├── manager.html
-    │   └── admin.html
     └── index.html
 ```
 
+### Backend
+
+| Thư mục | Chức năng |
+|----------|-----------|
+| config | Cấu hình hệ thống và kết nối cơ sở dữ liệu |
+| controllers | Xử lý request và response |
+| services | Xử lý nghiệp vụ |
+| dal | Truy xuất dữ liệu |
+| middleware | Xác thực và phân quyền |
+| routes | Định nghĩa API |
+| server.js | Điểm khởi động hệ thống |
+
+### Frontend
+
+| Thư mục | Chức năng |
+|----------|-----------|
+| pages | Chứa các trang giao diện |
+| css | Chứa mã định dạng giao diện |
+| js | Chứa các đoạn mã xử lý phía client |
+
 ---
 
-## Bước 3 — Tạo Database
+## Hướng dẫn cài đặt
 
-1. Mở **MySQL Workbench**
-2. Nhấn vào **Local instance MySQL** → nhập mật khẩu root → **OK**
-3. Mở tab **Query**, chạy lệnh sau để tạo database:
+### Bước 1. Cài đặt MySQL
+
+1. Chạy MySQL Installer.
+2. Chọn cài đặt MySQL Server 8.0 và MySQL Workbench.
+3. Thiết lập mật khẩu cho tài khoản root.
+4. Hoàn tất quá trình cài đặt.
+
+Kiểm tra dịch vụ MySQL:
+
+```text
+Windows + R
+services.msc
+```
+
+Đảm bảo dịch vụ MySQL80 đang ở trạng thái Running.
+
+---
+
+### Bước 2. Tạo Database
+
+Mở MySQL Workbench và thực hiện:
 
 ```sql
 CREATE DATABASE flight_booking
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
 USE flight_booking;
 ```
 
+Sau đó mở file:
 
-4. Nhấn **File → Open SQL Script** → chọn file `database/init.sql`
-5. Nhấn **⚡ Execute** (hoặc **Ctrl + Shift + Enter**)
-6. Kiểm tra bên trái: **Schemas → flight_booking → Tables** thấy đủ 9 bảng là thành công
+```text
+database/init.sql
+```
+
+và thực thi toàn bộ script.
 
 ---
 
-## Bước 4 — Cấu hình Backend
+### Bước 3. Cấu hình môi trường
 
-### 4.1 Tạo file `.env`
+Đổi tên file:
 
-Vào thư mục `backend`, tìm file `.env.example` → đổi tên thành `.env`
+```text
+backend/.env.example
+```
 
-Mở file `.env` và điền thông tin:
+thành:
+
+```text
+backend/.env
+```
+
+Sau đó cấu hình:
 
 ```env
 PORT=3000
@@ -111,7 +189,7 @@ NODE_ENV=development
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
-DB_PASSWORD=mật_khẩu_mysql_bạn_đặt_ở_bước_1
+DB_PASSWORD=your_mysql_password
 DB_NAME=flight_booking
 
 JWT_SECRET=flightbooking_secret_key_2025
@@ -120,138 +198,104 @@ JWT_EXPIRES_IN=24h
 BCRYPT_ROUNDS=10
 ```
 
-### 4.2 Cài thư viện Node.js
+---
 
-Mở **Command Prompt** hoặc **Terminal trong VS Code**, chạy:
+### Bước 4. Cài đặt thư viện
 
-```cmd
-cd C:\đường_dẫn_đến_thư_mục\flight-booking\backend
+Mở Terminal:
+
+```bash
+cd backend
 npm install
 ```
 
-Chờ khoảng 1–2 phút. Thấy thư mục `node_modules` xuất hiện là xong.
-
 ---
 
-## Bước 5 — Tạo mật khẩu cho tài khoản mẫu
+### Bước 5. Khởi tạo mật khẩu tài khoản mẫu
 
-Tạo file `seedPassword.js` trong thư mục `backend` với nội dung:
-
-```javascript
-require('dotenv').config();
-const bcrypt = require('bcryptjs');
-const { pool } = require('./config/database');
-
-async function seed() {
-    const users = [
-        { maTK: 'TK001', password: 'Admin@123' },
-        { maTK: 'TK002', password: 'Manager@123' },
-        { maTK: 'TK003', password: 'Customer@123' },
-    ];
-    for (const u of users) {
-        const hash = await bcrypt.hash(u.password, 10);
-        await pool.execute(
-            'UPDATE TAIKHOAN SET MatKhau = ? WHERE MaTK = ?',
-            [hash, u.maTK]
-        );
-        console.log(`✅ ${u.maTK} done`);
-    }
-    process.exit(0);
-}
-seed();
-```
-
-Chạy lệnh:
-
-```cmd
+```bash
 node seedPassword.js
 ```
 
-Kết quả thành công:
-```
-✅ TK001 done
-✅ TK002 done
-✅ TK003 done
+Kết quả:
+
+```text
+TK001 done
+TK002 done
+TK003 done
 ```
 
 ---
 
-## Bước 6 — Khởi động Server
+### Bước 6. Khởi động hệ thống
 
-```cmd
+```bash
 npm run dev
 ```
 
-Thấy thông báo sau là hệ thống đã sẵn sàng:
+Nếu thành công:
 
-```
-✅ Kết nối Database thành công!
-🚀 Server đang chạy tại http://localhost:3000
-```
-
----
-
-## Bước 7 — Truy cập hệ thống
-
-Mở trình duyệt, vào địa chỉ: **http://localhost:3000**
-
-### Tài khoản mặc định
-
-| Vai trò | Tên đăng nhập | Mật khẩu | Trang sau đăng nhập |
-|---|---|---|---|
-| Admin | `admin` | `Admin@123` | `/pages/admin.html` |
-| Manager | `manager` | `Manager@123` | `/pages/manager.html` |
-| Customer | `customer1` | `Customer@123` | `/index.html` |
-
----
-
-## Những lần chạy tiếp theo
-
-Khi tắt máy và muốn chạy lại, chỉ cần:
-
-```cmd
-cd C:\đường_dẫn_đến_thư_mục\flight-booking\backend
-npm run dev
+```text
+Kết nối Database thành công!
+Server đang chạy tại http://localhost:3000
 ```
 
-MySQL tự động chạy cùng Windows nên không cần khởi động lại.
+---
+
+## Tài khoản mặc định
+
+| Vai trò | Tên đăng nhập | Mật khẩu |
+|----------|---------------|-----------|
+| Admin | admin | Admin@123 |
+| Manager | manager | Manager@123 |
+| Customer | customer1 | Customer@123 |
 
 ---
 
-## Xử lý lỗi thường gặp
-
-### Lỗi: "Unable to connect to 127.0.0.1:3306"
-MySQL chưa chạy. Mở **Services** (Windows + R → `services.msc`) → tìm **MySQL80** → chuột phải → **Start**
-
-### Lỗi: "Access denied for user root"
-Sai mật khẩu trong file `.env`. Kiểm tra lại `DB_PASSWORD` có đúng với mật khẩu đặt lúc cài MySQL không.
-
-### Lỗi: "Cannot find module"
-Chưa cài thư viện hoặc đang chạy sai thư mục. Kiểm tra terminal đang ở thư mục `backend` và đã chạy `npm install`.
-
-### Lỗi: "Port 3000 already in use"
-Đã có tiến trình khác dùng cổng 3000. Tắt terminal cũ hoặc đổi `PORT` trong `.env` thành `3001`.
-
-### Tài khoản không đăng nhập được
-Chưa chạy `seedPassword.js`. Chạy lại lệnh `node seedPassword.js` trong thư mục `backend`.
-
----
-
-## Tính năng theo từng vai trò
+## Chức năng hệ thống
 
 ### Customer
-- Tìm kiếm chuyến bay theo sân bay, ngày, hạng vé
-- Đặt chỗ, sửa phiếu đặt, huỷ đặt chỗ
-- Xem lịch sử vé của mình
+
+- Đăng ký tài khoản
+- Đăng nhập hệ thống
+- Tìm kiếm chuyến bay
+- Đặt chỗ chuyến bay
+- Chỉnh sửa phiếu đặt chỗ
+- Hủy phiếu đặt chỗ
+- Xem lịch sử đặt vé
 
 ### Manager
-- Thêm, sửa, xoá chuyến bay
+
+- Quản lý chuyến bay
 - Quản lý sân bay trung gian
-- Xuất vé, sửa, xoá phiếu đặt
-- Xem báo cáo doanh thu theo tháng và năm
+- Quản lý đặt vé
+- Xuất vé
+- Xem báo cáo doanh thu theo tháng
+- Xem báo cáo doanh thu theo năm
 
 ### Admin
-- Quản lý tài khoản (tạo, khoá, đổi vai trò)
-- Quản lý sân bay và hạng vé
-- Cập nhật tham số hệ thống (tự động ghi log)
-- Xem lịch sử thay đổi quy định
+
+- Quản lý tài khoản
+- Phân quyền người dùng
+- Quản lý sân bay
+- Quản lý hạng vé
+- Cập nhật tham số hệ thống
+- Theo dõi lịch sử thay đổi quy định
+
+---
+
+## Quy trình phát triển
+
+Nhóm áp dụng mô hình phát triển phần mềm Waterfall gồm các giai đoạn:
+
+1. Khảo sát
+2. Phân tích yêu cầu
+3. Thiết kế hệ thống
+4. Hiện thực
+5. Kiểm thử
+
+---
+
+## Giấy phép
+
+Dự án được phát triển phục vụ mục đích học tập trong học phần SE104 – Nhập môn Công nghệ Phần mềm, Trường Đại học Công nghệ Thông tin – Đại học Quốc gia Thành phố Hồ Chí Minh.
